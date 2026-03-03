@@ -2,8 +2,8 @@
 name: "HAOS Kiosk Display"
 description: |
   Start X server and browser on local HAOS server and display dashboards in
-  kiosk mode (Jeff Kosowsky)
-version: "1.3.0"
+  kiosk mode, with optional Chromium support for modern dashboards and WebGL.
+version: "1.3.1"
 slug: "haoskiosk"
 
 arch:
@@ -72,7 +72,7 @@ options:
   login_delay: 1.0
   zoom_level: 100
   browser_refresh: 600
-  browser_engine: "chromium"
+  browser_engine: "luakit"
   screen_timeout: 0
   output_number: 1
   dark_mode: true

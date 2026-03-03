@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.1 - March 2026
+
+- Add optional Chromium browser engine for modern dashboards and WebGL
+- Explicitly enable Chromium touch events for kiosk sessions
+- Improve Chromium cache invalidation and browser refresh behavior
+- Tune Chromium GL backend defaults for HAOS
+
 ## v1.3.0 - February 2026
 
 - Added more key bindings for opening/closing/rotating tabs and windows
