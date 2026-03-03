@@ -87,6 +87,8 @@ declare -a BROWSER_FLAGS=()
 BROWSER_PROCESS_MATCH=""
 CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
 CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
+CHROMIUM_GL_MODE="${CHROMIUM_GL_MODE:-angle}"
+CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-default}"
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
@@ -177,6 +179,8 @@ esac
 export BROWSER_ENGINE
 export CHROMIUM_DEVTOOLS_PORT
 export CHROMIUM_PROFILE_DIR
+export CHROMIUM_GL_MODE
+export CHROMIUM_ANGLE_BACKEND
 
 resolve_browser_binary() {
     case "$BROWSER_ENGINE" in
@@ -202,9 +206,11 @@ resolve_browser_binary() {
                 --window-position=0,0
                 --start-fullscreen
                 --kiosk
+                --ozone-platform=x11
                 --enable-gpu-rasterization
                 --ignore-gpu-blocklist
-                --use-gl=egl
+                --use-gl="$CHROMIUM_GL_MODE"
+                --use-angle="$CHROMIUM_ANGLE_BACKEND"
             )
             BROWSER_PROCESS_MATCH='chromium'
             ;;
@@ -222,6 +228,9 @@ browser_process_running() {
 
 resolve_browser_binary
 bashio::log.info "Using browser engine: $BROWSER_ENGINE [$BROWSER]"
+if [ "$BROWSER_ENGINE" = "chromium" ]; then
+    bashio::log.info "Chromium GL mode: use-gl=$CHROMIUM_GL_MODE use-angle=$CHROMIUM_ANGLE_BACKEND"
+fi
 
 ################################################################################
 ### GTK and DBUS-related environment variables to improve stability

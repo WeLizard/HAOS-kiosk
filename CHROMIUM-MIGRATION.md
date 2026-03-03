@@ -19,6 +19,10 @@ What changed in this pass:
   - HA sidebar and theme localStorage setup
   - timed browser reloads
 - Updated `run.sh` so Chromium can be launched with persistent profile and DevTools enabled.
+- Switched default Chromium GL launch path to `--use-gl=angle --use-angle=default`
+  because the target HAOS hardware advertises `egl-angle` as the allowed
+  implementation while `--use-gl=egl` caused the GPU process to exit during
+  startup.
 
 Known remaining gaps:
 
