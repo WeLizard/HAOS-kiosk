@@ -63,7 +63,11 @@ RUN apk update && apk add --no-cache \
       x11vnc \
 # Browser
 #    luakit \
-   && apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.21/community luakit=2.3.6-r0 \
+   && apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.21/community \
+      chromium \
+      font-noto \
+      font-noto-emoji \
+      luakit=2.3.6-r0 \
    && rm -rf /var/cache/apk/*
 
 #===============================================================================
@@ -81,6 +85,7 @@ RUN chmod a+x /run.sh
 
 COPY mouse_touch_inputs.py gesture_commands.json /
 COPY rest_server.py /
+COPY browser_ctl.py chromium_watchdog.py /
 RUN pip install --no-cache-dir  --break-system-packages aiohttp #Required for rest_server.py
 
 #### Patches

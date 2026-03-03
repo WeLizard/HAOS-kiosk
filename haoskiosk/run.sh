@@ -82,8 +82,11 @@ trap cleanup HUP INT QUIT ABRT TERM EXIT
 
 ################################################################################
 #### Variables
-BROWSER="luakit"
-BROWSER_FLAGS=
+BROWSER=""
+declare -a BROWSER_FLAGS=()
+BROWSER_PROCESS_MATCH=""
+CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
+CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
@@ -128,6 +131,7 @@ load_config_var HA_DASHBOARD ""
 load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
 load_config_var BROWSER_REFRESH 600
+load_config_var BROWSER_ENGINE "chromium"
 load_config_var SCREEN_TIMEOUT 600  # Default to 600 seconds
 load_config_var OUTPUT_NUMBER 1  # Which *CONNECTED* Physical video output to use (Defaults to 1)
 #NOTE: By only considering *CONNECTED* output, this maximizes the chance of finding an output
@@ -156,6 +160,68 @@ if [ -z "$HA_USERNAME" ] || [ -z "$HA_PASSWORD" ]; then
     bashio::log.error "Error: HA_USERNAME and HA_PASSWORD must be set"
     exit 1
 fi
+
+case "${BROWSER_ENGINE,,}" in
+    chromium|chrome)
+        BROWSER_ENGINE="chromium"
+        ;;
+    luakit)
+        BROWSER_ENGINE="luakit"
+        ;;
+    *)
+        bashio::log.error "Unsupported BROWSER_ENGINE='$BROWSER_ENGINE' (expected chromium or luakit)"
+        exit 1
+        ;;
+esac
+
+export BROWSER_ENGINE
+export CHROMIUM_DEVTOOLS_PORT
+export CHROMIUM_PROFILE_DIR
+
+resolve_browser_binary() {
+    case "$BROWSER_ENGINE" in
+        chromium)
+            if command -v chromium-browser >/dev/null 2>&1; then
+                BROWSER="chromium-browser"
+            elif command -v chromium >/dev/null 2>&1; then
+                BROWSER="chromium"
+            else
+                bashio::log.error "Chromium requested but neither 'chromium-browser' nor 'chromium' found in container"
+                exit 1
+            fi
+            BROWSER_FLAGS=(
+                --no-sandbox
+                --no-first-run
+                --no-default-browser-check
+                --disable-session-crashed-bubble
+                --disable-infobars
+                --password-store=basic
+                --remote-debugging-address=127.0.0.1
+                --remote-debugging-port="$CHROMIUM_DEVTOOLS_PORT"
+                --user-data-dir="$CHROMIUM_PROFILE_DIR"
+                --window-position=0,0
+                --start-fullscreen
+                --kiosk
+                --enable-gpu-rasterization
+                --ignore-gpu-blocklist
+                --use-gl=egl
+            )
+            BROWSER_PROCESS_MATCH='chromium'
+            ;;
+        luakit)
+            BROWSER="luakit"
+            BROWSER_FLAGS=()
+            BROWSER_PROCESS_MATCH='luakit'
+            ;;
+    esac
+}
+
+browser_process_running() {
+    pgrep -f -- "$BROWSER_PROCESS_MATCH" > /dev/null 2>&1
+}
+
+resolve_browser_binary
+bashio::log.info "Using browser engine: $BROWSER_ENGINE [$BROWSER]"
 
 ################################################################################
 ### GTK and DBUS-related environment variables to improve stability
@@ -667,12 +733,22 @@ fi
 #### Start browser (or debug mode)  and wait/sleep
 if [ "$DEBUG_MODE" != true ]; then
     ### Run browser in the background and wait for process to exit
-    $BROWSER ${BROWSER_FLAGS:+$BROWSER_FLAGS} "$HA_URL/$HA_DASHBOARD" &
+    if [ "$BROWSER_ENGINE" = "chromium" ]; then
+        mkdir -p "$CHROMIUM_PROFILE_DIR"
+        rm -f "$CHROMIUM_PROFILE_DIR"/Singleton*
+    fi
+
+    "$BROWSER" "${BROWSER_FLAGS[@]}" "$HA_URL/$HA_DASHBOARD" &
     bashio::log.info "Launching $BROWSER browser(PID=$!): $HA_URL/$HA_DASHBOARD"
+
+    if [ "$BROWSER_ENGINE" = "chromium" ]; then
+        python3 -u /chromium_watchdog.py &
+        bashio::log.info "Launching Chromium watchdog(PID=$!) on DevTools port $CHROMIUM_DEVTOOLS_PORT"
+    fi
 
     count=0
     while true; do  # Wait for all browser processes to exit
-        if pgrep -f -- "^$BROWSER " > /dev/null 2>&1; then
+        if browser_process_running; then
             count=0
         else
             count=$((count + 1))
