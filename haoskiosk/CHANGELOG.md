@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.1-welizard.3 - March 2026
+
+- Explicitly enable Chromium touch events for kiosk sessions
+- Improve compatibility with touchscreens such as the Mellow FlyHDMI7
+  when pages rely on pointer/touch gestures like tap and pinch
+
 ## v1.3.0 - February 2026
 
 - Added more key bindings for opening/closing/rotating tabs and windows

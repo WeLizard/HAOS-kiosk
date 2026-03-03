@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.0
+# Version: 1.3.1-welizard.3
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -212,6 +212,7 @@ resolve_browser_binary() {
                 --start-fullscreen
                 --kiosk
                 --ozone-platform=x11
+                --touch-events=enabled
                 --enable-gpu-rasterization
                 --ignore-gpu-blocklist
                 --use-gl="$CHROMIUM_GL_MODE"
