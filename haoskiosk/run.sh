@@ -199,10 +199,15 @@ resolve_browser_binary() {
                 --no-default-browser-check
                 --disable-session-crashed-bubble
                 --disable-infobars
+                --disable-application-cache
+                --aggressive-cache-discard
                 --password-store=basic
                 --remote-debugging-address=127.0.0.1
                 --remote-debugging-port="$CHROMIUM_DEVTOOLS_PORT"
                 --user-data-dir="$CHROMIUM_PROFILE_DIR"
+                --disk-cache-dir=/tmp/haoskiosk-cache
+                --disk-cache-size=1
+                --media-cache-size=1
                 --window-position=0,0
                 --start-fullscreen
                 --kiosk
@@ -224,6 +229,32 @@ resolve_browser_binary() {
 
 browser_process_running() {
     pgrep -f -- "$BROWSER_PROCESS_MATCH" > /dev/null 2>&1
+}
+
+clear_chromium_runtime_cache() {
+    [ "$BROWSER_ENGINE" = "chromium" ] || return 0
+
+    mkdir -p "$CHROMIUM_PROFILE_DIR"
+
+    local cache_paths=(
+        "$CHROMIUM_PROFILE_DIR/Cache"
+        "$CHROMIUM_PROFILE_DIR/Code Cache"
+        "$CHROMIUM_PROFILE_DIR/GPUCache"
+        "$CHROMIUM_PROFILE_DIR/DawnCache"
+        "$CHROMIUM_PROFILE_DIR/GrShaderCache"
+        "$CHROMIUM_PROFILE_DIR/ShaderCache"
+        "$CHROMIUM_PROFILE_DIR/Default/Cache"
+        "$CHROMIUM_PROFILE_DIR/Default/Code Cache"
+        "$CHROMIUM_PROFILE_DIR/Default/GPUCache"
+        "$CHROMIUM_PROFILE_DIR/Default/DawnCache"
+        "$CHROMIUM_PROFILE_DIR/Default/GrShaderCache"
+        "$CHROMIUM_PROFILE_DIR/Default/Service Worker"
+    )
+
+    local cache_path
+    for cache_path in "${cache_paths[@]}"; do
+        rm -rf "$cache_path"
+    done
 }
 
 resolve_browser_binary
@@ -745,6 +776,7 @@ if [ "$DEBUG_MODE" != true ]; then
     if [ "$BROWSER_ENGINE" = "chromium" ]; then
         mkdir -p "$CHROMIUM_PROFILE_DIR"
         rm -f "$CHROMIUM_PROFILE_DIR"/Singleton*
+        clear_chromium_runtime_cache
     fi
 
     "$BROWSER" "${BROWSER_FLAGS[@]}" "$HA_URL/$HA_DASHBOARD" &
