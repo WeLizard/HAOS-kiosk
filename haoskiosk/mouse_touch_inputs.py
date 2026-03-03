@@ -467,7 +467,7 @@ if input_args.file is not None:
 ALLOWED_PATHS = {"/bin", "/usr/bin", "/usr/local/bin"} # Executables must be in these directoriesp
 
 ## Commands that are white-listed -- all others are blocked (Note: set to ".*" to allow all or "" to block all)
-DEFAULT_COMMAND_WHITELIST_REGEX = r"cat|date|dbus-send|echo|false|grep|head|ls|luakit|notify-send|ping|ping6|ps|pstree|sleep|tail|test|top|tree|xdotool|xset"
+DEFAULT_COMMAND_WHITELIST_REGEX = r"cat|chromium|chromium-browser|date|dbus-send|echo|false|grep|head|ls|luakit|notify-send|ping|ping6|ps|pstree|sleep|tail|test|top|tree|xdotool|xset"
 COMMAND_WHITELIST_REGEX = os.getenv("COMMAND_WHITELIST", DEFAULT_COMMAND_WHITELIST_REGEX).strip()
 
 COMPILED_WHITELIST_REGEX: re.Pattern[str] | None = None
@@ -635,19 +635,19 @@ def register_function(
 @register_function("back")
 def handle_back(timeout: int | None = None, *, _cmd_name: str = "unknown") -> None:
     """Go back in browser history."""
-    cmd = ["xdotool", "key", "--clearmodifiers", "ctrl+Left"]
+    cmd = ["python3", "/browser_ctl.py", "back"]
     _run_subprocess(cmd, timeout=timeout, description=_cmd_name)
 
 @register_function("forward")
 def handle_forward(timeout: int | None = None, *, _cmd_name: str = "unknown") -> None:
     """Go forward in browser history."""
-    cmd = ["xdotool", "key", "--clearmodifiers", "ctrl+Right"]
+    cmd = ["python3", "/browser_ctl.py", "forward"]
     _run_subprocess(cmd, timeout=timeout, description=_cmd_name)
 
 @register_function("refresh_browser")
 def handle_refresh_browser(timeout: int | None = None, *, _cmd_name: str = "unknown") -> None:
     """Reload current page."""
-    cmd = ["xdotool", "key", "--clearmodifiers", "ctrl+r"]
+    cmd = ["python3", "/browser_ctl.py", "refresh_browser"]
     _run_subprocess(cmd, timeout=timeout, description=_cmd_name)
 
 @register_function("launch_url", optional=["url"])
@@ -659,10 +659,7 @@ def handle_launch_url(url: str = DEFAULT_LAUNCH_URL, timeout: int | None = None,
         raise ValueError(f"{_cmd_name}: URL cannot be empty or whitespace: {url}")
     if not is_valid_url(url):
         raise ValueError(f"{_cmd_name}: Invalid URL format: {url}")
-    if url != "about:blank" and not url.startswith(("http://", "https://")):
-        url = "http://" + url
-
-    cmd = ["luakit", "-n",  url]
+    cmd = ["python3", "/browser_ctl.py", "launch_url", url]
     _run_subprocess(cmd, timeout=timeout, description=_cmd_name)
 
 @register_function("display_on", optional=["blank_timeout"],
