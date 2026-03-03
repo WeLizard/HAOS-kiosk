@@ -124,6 +124,12 @@ configuration:
     description: |
       Regex of runnable user commands for the REST API and for use in
       gesture commands. See README for details
+  touch_debug_level:
+    name: "Touch Debug Level"
+    description: |
+      Debug verbosity for mouse/touch gesture parsing. Use 1 for normal logs,
+      2-3 to inspect real tap/swipe/pinch handling, and higher values only for
+      deep parser debugging. [Default: 1]
   vnc_server:
     name: "VNC Server Password"
     description: |

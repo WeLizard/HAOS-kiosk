@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.1-welizard.3
+# Version: 1.3.1-welizard.4
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -34,6 +34,7 @@
 #         REST_IP
 #         REST_BEARER_TOKEN
 #         COMMAND_WHITELIST
+#         TOUCH_DEBUG_LEVEL
 #         VNC_SERVER
 #         DEBUG_MODE
 #
@@ -154,6 +155,7 @@ load_config_var REST_PORT 8080
 load_config_var REST_IP "127.0.0.1"
 load_config_var REST_BEARER_TOKEN "" 1  # Mask token in log
 load_config_var COMMAND_WHITELIST "^$"  # Default is no commands allowed
+load_config_var TOUCH_DEBUG_LEVEL 1
 load_config_var DEBUG_MODE false
 load_config_var VNC_SERVER ""  1 #Mask password in log
 
@@ -736,7 +738,7 @@ pactl list short sinks | awk -v def="$sink" '{prefix = ($2 == def) ? "*" : " "; 
 
 ### Launch Xinput parsing...
 bashio::log.info "Starting Mouse & Touch input gesture command parsing..."
-python3 -u /mouse_touch_inputs.py  -d 1 -w "$COMMAND_WHITELIST" &
+python3 -u /mouse_touch_inputs.py -d "$TOUCH_DEBUG_LEVEL" -w "$COMMAND_WHITELIST" &
 
 #### Start  HAOSKiosk REST server
 bashio::log.info "Starting HAOSKiosk REST server..."
