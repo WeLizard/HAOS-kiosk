@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.1-welizard.5 - March 2026
+
+- Add a clear `Browser Engine` selector to the add-on configuration UI
+- Keep Chromium/Luakit switching exposed next to the other browser settings
+
+## v1.3.1-welizard.4 - March 2026
+
+- Add configurable `touch_debug_level` so touch and gesture parsing can be
+  diagnosed on real hardware like the Mellow FlyHDMI7 without rebuilding the
+  container for each test
 ## v1.3.1-welizard.3 - March 2026
 
 - Explicitly enable Chromium touch events for kiosk sessions
