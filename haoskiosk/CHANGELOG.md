@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.1-welizard.9 - March 2026
+
+- Fix Home Assistant ingress 502 by starting a dedicated ingress-compatible
+  REST/UI listener on fixed port `8099`
+- Keep automation REST endpoint compatible on user-configured `rest_port`
+  (default `8080`) while ingress remains stable
+
 ## v1.3.1-welizard.8 - March 2026
 
 - Launch Neiri directly by URL instead of relying on the intermediate

@@ -90,6 +90,7 @@ CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
 CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
 CHROMIUM_GL_MODE="${CHROMIUM_GL_MODE:-angle}"
 CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-default}"
+INGRESS_PORT="${INGRESS_PORT:-8099}"
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
@@ -789,6 +790,12 @@ python3 -u /mouse_touch_inputs.py -d "$TOUCH_DEBUG_LEVEL" -w "$COMMAND_WHITELIST
 #### Start  HAOSKiosk REST server
 bashio::log.info "Starting HAOSKiosk REST server..."
 python3 -u /rest_server.py &
+
+#### Start dedicated ingress REST/UI server on fixed port 8099 (if different from REST_PORT)
+if [ "$REST_PORT" != "$INGRESS_PORT" ]; then
+    bashio::log.info "Starting HAOSKiosk ingress REST/UI server on 127.0.0.1:$INGRESS_PORT..."
+    REST_IP="127.0.0.1" REST_PORT="$INGRESS_PORT" python3 -u /rest_server.py &
+fi
 
 #### Optionally start vnc server
 if [ -n "$VNC_SERVER" ]; then
