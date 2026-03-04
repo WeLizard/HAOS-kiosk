@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.1-welizard.4
+# Version: 1.3.1-welizard.8
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -201,6 +201,10 @@ resolve_browser_binary() {
                 --no-default-browser-check
                 --disable-session-crashed-bubble
                 --disable-infobars
+                --disable-features=Translate,TranslateUI,AutofillServerCommunication,PasswordManagerOnboarding,PasswordCheck,PasswordManagerRedesign,OptimizationGuideModelDownloading
+                --disable-save-password-bubble
+                --disable-sync
+                --disable-search-engine-choice-screen
                 --disable-application-cache
                 --aggressive-cache-discard
                 --password-store=basic
@@ -258,6 +262,48 @@ clear_chromium_runtime_cache() {
     for cache_path in "${cache_paths[@]}"; do
         rm -rf "$cache_path"
     done
+}
+
+seed_chromium_preferences() {
+    [ "$BROWSER_ENGINE" = "chromium" ] || return 0
+
+    local default_dir="$CHROMIUM_PROFILE_DIR/Default"
+    mkdir -p "$default_dir"
+
+    cat > "$default_dir/Preferences" <<'EOF'
+{
+  "autofill": {
+    "enabled": false
+  },
+  "browser": {
+    "check_default_browser": false,
+    "has_seen_welcome_page": true
+  },
+  "credentials_enable_service": false,
+  "distribution": {
+    "import_bookmarks": false,
+    "import_history": false,
+    "import_search_engine": false,
+    "make_chrome_default_for_user": false,
+    "skip_first_run_ui": true
+  },
+  "profile": {
+    "default_content_setting_values": {
+      "notifications": 2
+    },
+    "password_manager_enabled": false
+  },
+  "safebrowsing": {
+    "enabled": false
+  },
+  "sync_promo": {
+    "show_on_first_run_allowed": false
+  },
+  "translate": {
+    "enabled": false
+  }
+}
+EOF
 }
 
 resolve_browser_binary
@@ -780,6 +826,7 @@ if [ "$DEBUG_MODE" != true ]; then
         mkdir -p "$CHROMIUM_PROFILE_DIR"
         rm -f "$CHROMIUM_PROFILE_DIR"/Singleton*
         clear_chromium_runtime_cache
+        seed_chromium_preferences
     fi
 
     "$BROWSER" "${BROWSER_FLAGS[@]}" "$HA_URL/$HA_DASHBOARD" &

@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.1-welizard.8 - March 2026
+
+- Launch Neiri directly by URL instead of relying on the intermediate
+  `dashboard-display/0` container path for kiosk runtime
+- Suppress Chromium translate and password-save UI so fullscreen display
+  sessions stay clean on HDMI screens
+
 ## v1.3.1-welizard.7 - March 2026
 
 - Add a first-party ingress editor for kiosk display page configuration
