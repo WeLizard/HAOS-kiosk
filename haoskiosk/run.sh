@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.1-welizard.8
+# Version: 1.3.1-welizard.10
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #

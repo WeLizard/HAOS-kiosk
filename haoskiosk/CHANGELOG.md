@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.1-welizard.10 - March 2026
+
+- Explicitly set ingress_port: 8099 in add-on metadata so Home Assistant ingress
+  always targets the editor server port used by the runtime
+- Prevent stale ingress mappings that can surface as 502 Bad Gateway when
+  opening the add-on Web UI
+
 ## v1.3.1-welizard.9 - March 2026
 
 - Fix Home Assistant ingress 502 by starting a dedicated ingress-compatible
