@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.2-welizard.1 - March 2026
+
+- Fix supervisor update detection by bumping to a clear semver successor after 1.3.1-welizard.8.
+- Keep ingress enabled on a stable fixed port (ingress_port: 8099) so Web UI editor does not return 502 due random port drift.
+
 ## v1.3.1-welizard.10 - March 2026
 
 - Explicitly set ingress_port: 8099 in add-on metadata so Home Assistant ingress
