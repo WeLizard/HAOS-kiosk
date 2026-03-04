@@ -28,6 +28,15 @@ configuration:
     description: |
       Browser refresh interval in seconds; 0 for never [Default: 600]
       Note: Recommended since on RPi, console messages can overwrite browser
+  browser_engine:
+    name: "Browser Engine"
+    description: |
+      Choose which browser runtime to launch. Use `luakit` for the original
+      default behavior or `chromium` for modern dashboards that require
+      WebGL or newer browser APIs. [Default: luakit]
+    items:
+      luakit: "Luakit"
+      chromium: "Chromium"
   screen_timeout:
     name: "Screen Timeout"
     description: "Time in seconds until screen blanks; 0 for never [Default: 0]"
@@ -132,5 +141,5 @@ configuration:
   debug_mode:
     name: "Debug Mode"
     description: |
-      Launch X and Openbox but not Luakit browser. [Default: False]
+      Launch X and Openbox but not the kiosk browser. [Default: False]
       Manually access using: sudo docker -exec -it addon_haoskiosk bash

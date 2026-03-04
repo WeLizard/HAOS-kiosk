@@ -7,8 +7,12 @@ Display HA dashboards in kiosk mode directly on your HAOS server.
 ## Description
 
 Launches X-Windows on local HAOS server followed by OpenBox window manager
-and Luakit browser starting with your configured default Home Assistant
+and a kiosk browser starting with your configured default Home Assistant
 dashboard.
+
+By default the add-on continues to use Luakit. An optional Chromium engine
+is also available for modern dashboards that rely on WebGL, richer emoji
+rendering, or more recent browser features.
 
 - Standard mouse, touchscreen, and keyboard interactions should work
   automatically as well as audio
@@ -126,6 +130,16 @@ Time between browser refreshes. Set to `0` to disable.\
 Recommended because with the default RPi config, console errors *may*
 overwrite the dashboard.\
 (Default: 600 seconds)
+
+### Browser Engine
+
+Choose which kiosk browser engine to start.
+
+- `luakit`: original default runtime with the lowest behavioral change
+- `chromium`: optional modern runtime for dashboards that require WebGL or
+  newer browser APIs
+
+(Default: `luakit`)
 
 ### Screen Timeout
 

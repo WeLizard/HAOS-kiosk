@@ -21,7 +21,7 @@ from typing import Any
 from aiohttp import ClientSession, ClientTimeout, WSMsgType  # type: ignore[import-not-found]
 
 
-BROWSER_ENGINE = (os.getenv("BROWSER_ENGINE") or "chromium").strip().lower()
+BROWSER_ENGINE = (os.getenv("BROWSER_ENGINE") or "luakit").strip().lower()
 CHROMIUM_DEVTOOLS_PORT = int(os.getenv("CHROMIUM_DEVTOOLS_PORT", "9222"))
 CHROMIUM_DEVTOOLS_HOST = os.getenv("CHROMIUM_DEVTOOLS_HOST", "127.0.0.1")
 DEFAULT_LAUNCH_URL = (
