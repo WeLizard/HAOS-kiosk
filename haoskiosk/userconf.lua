@@ -65,6 +65,15 @@ local defaults = {
                         }
 local username = os.getenv("HA_USERNAME") or defaults.HA_USERNAME
 local password = os.getenv("HA_PASSWORD") or defaults.HA_PASSWORD
+local raw_auto_login = (os.getenv("HA_AUTO_LOGIN") or ""):lower()
+local auto_login = nil
+if raw_auto_login == "1" or raw_auto_login == "true" or raw_auto_login == "yes" or raw_auto_login == "on" then
+    auto_login = true
+elseif raw_auto_login == "0" or raw_auto_login == "false" or raw_auto_login == "no" or raw_auto_login == "off" then
+    auto_login = false
+else
+    auto_login = username ~= "" and password ~= ""
+end
 
 local ha_url = os.getenv("HA_URL") or defaults.HA_URL  -- Starting URL
 if not ha_url:match("^https?://[%w%.%-%%:]+[/%?%#]?[/%w%.%-%?%#%=%%]*$") then
@@ -131,8 +140,8 @@ end
 
 local onscreen_keyboard = os.getenv("ONSCREEN_KEYBOARD") == "true"
 
-msg.info("USERNAME=%s; URL=%s; DARK_MODE=%s; SIDEBAR=%s; THEME=%s; LOGIN_DELAY=%.1f, ZOOM_LEVEL=%d, BROWSER_REFRESH=%d,  ONSCREEN_KEYBOARD=%s",
-    username, ha_url, tostring(dark_mode), sidebar, theme, login_delay, zoom_level, browser_refresh, tostring(onscreen_keyboard))
+msg.info("AUTO_LOGIN=%s; USERNAME=%s; URL=%s; DARK_MODE=%s; SIDEBAR=%s; THEME=%s; LOGIN_DELAY=%.1f, ZOOM_LEVEL=%d, BROWSER_REFRESH=%d, ONSCREEN_KEYBOARD=%s",
+    tostring(auto_login), username, ha_url, tostring(dark_mode), sidebar, theme, login_delay, zoom_level, browser_refresh, tostring(onscreen_keyboard))
 
 -- -----------------------------------------------------------------------
 -- Forward console messages to stdout
@@ -243,7 +252,7 @@ webview.add_signal("init", function(view)
 
         -- Set up auto-login for Home Assistant
         -- Check if current URL matches the Home Assistant auth page
-        if v.uri:match("^" .. ha_url_base .. "/auth/authorize%?response_type=code") then
+        if auto_login and v.uri:match("^" .. ha_url_base .. "/auth/authorize%?response_type=code") then
             msg.info("Authorizing: %s", v.uri) -- DEBUG
             -- JavaScript to auto-fill and submit the login form
             local js_auto_login = string.format([[

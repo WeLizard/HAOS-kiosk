@@ -1,5 +1,85 @@
 # Changelog
 
+## v1.3.2-welizard.7 - March 2026
+
+- Make `ha_username` and `ha_password` optional in add-on schema so the
+  manifest remains valid even without credentials.
+- Remove hard startup failure when HA credentials are empty.
+- Add explicit `HA_AUTO_LOGIN` runtime mode:
+  - enabled only when both username and password are configured
+  - disabled otherwise (kiosk still starts and can use existing HA session)
+- Update option descriptions to reflect optional auto-login behavior.
+
+## v1.3.2-welizard.6 - March 2026
+
+- Fix add-on manifest validation in Home Assistant Supervisor by adding
+  default `options` entries for required schema fields `ha_username` and
+  `ha_password`.
+- This removes `Invalid config: Missing option 'ha_username' in root`
+  when adding/updating the repository.
+
+## v1.3.2-welizard.5 - March 2026
+
+- Fix ingress/REST port drift by aligning runtime fallback `INGRESS_PORT` with
+  add-on metadata `ingress_port` (`8080`), so Home Assistant ingress does not
+  break with `502 Bad Gateway` when `rest_port` is customized.
+- Add configurable `ingress_runtime_port` option so ingress target can be
+  corrected from add-on settings without editing `run.sh`.
+
+## v1.3.2-welizard.3 - March 2026
+
+- Fix ingress editor API path resolution by using a URL relative to current page
+  (works both for direct `http://host:port/` and `/api/hassio_ingress/...`).
+- Set add-on metadata `ingress_port` to `8080` so default ingress routing matches
+  the default REST/UI server port out of the box.
+
+## v1.3.2-welizard.2 - March 2026
+
+- Expose the add-on ingress UI as a proper sidebar panel (`panel_title` + `panel_icon`)
+  so the scene editor is discoverable from Home Assistant UI.
+- Allow `/editor/config` reads/writes through ingress-authenticated requests even when
+  `REST_BEARER_TOKEN` is enabled, removing the extra token prompt for normal HA usage.
+- Add scene-editing convenience actions in the editor (`Форматировать`, `+ Страница`,
+  `Шаблон`) to make carousel customization possible without manual JSON scaffolding.
+
+## v1.3.2-welizard.1 - March 2026
+
+- Fix supervisor update detection by bumping to a clear semver successor after 1.3.1-welizard.8.
+- Keep ingress enabled on a stable fixed port (ingress_port: 8099) so Web UI editor does not return 502 due random port drift.
+
+## v1.3.1-welizard.10 - March 2026
+
+- Explicitly set ingress_port: 8099 in add-on metadata so Home Assistant ingress
+  always targets the editor server port used by the runtime
+- Prevent stale ingress mappings that can surface as 502 Bad Gateway when
+  opening the add-on Web UI
+
+## v1.3.1-welizard.9 - March 2026
+
+- Fix Home Assistant ingress 502 by starting a dedicated ingress-compatible
+  REST/UI listener on fixed port `8099`
+- Keep automation REST endpoint compatible on user-configured `rest_port`
+  (default `8080`) while ingress remains stable
+
+## v1.3.1-welizard.8 - March 2026
+
+- Launch Neiri directly by URL instead of relying on the intermediate
+  `dashboard-display/0` container path for kiosk runtime
+- Suppress Chromium translate and password-save UI so fullscreen display
+  sessions stay clean on HDMI screens
+
+## v1.3.1-welizard.7 - March 2026
+
+- Add a first-party ingress editor for kiosk display page configuration
+- Store page definitions in `/config/display-pages.json` instead of treating
+  Lovelace itself as the page editor
+
+## v1.3.1-welizard.6 - March 2026
+
+- Fix `touch_debug_level` schema so Home Assistant Supervisor can index the
+  add-on in the store instead of dropping it as invalid
+- Point repository metadata and installation docs to the canonical
+  `WeLizard/HAOS-kiosk` repository
 ## v1.3.1-welizard.5 - March 2026
 
 - Add a clear `Browser Engine` selector to the add-on configuration UI

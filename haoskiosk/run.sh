@@ -155,11 +155,20 @@ load_config_var COMMAND_WHITELIST "^$"  # Default is no commands allowed
 load_config_var DEBUG_MODE false
 load_config_var VNC_SERVER ""  1 #Mask password in log
 
-# Validate environment variables set by config.yaml
-if [ -z "$HA_USERNAME" ] || [ -z "$HA_PASSWORD" ]; then
-    bashio::log.error "Error: HA_USERNAME and HA_PASSWORD must be set"
-    exit 1
+# Resolve optional HA auto-login mode.
+# Auto-login is enabled only when both username and password are configured.
+HA_AUTO_LOGIN=true
+if [ -z "$HA_USERNAME" ] && [ -z "$HA_PASSWORD" ]; then
+    HA_AUTO_LOGIN=false
+    bashio::log.info "HA auto-login disabled: credentials not configured"
+elif [ -z "$HA_USERNAME" ] || [ -z "$HA_PASSWORD" ]; then
+    HA_AUTO_LOGIN=false
+    bashio::log.warning "HA auto-login disabled: both HA_USERNAME and HA_PASSWORD are required"
 fi
+export HA_AUTO_LOGIN
+bashio::log.info "HA_AUTO_LOGIN=$HA_AUTO_LOGIN"
+export HA_AUTO_LOGIN
+bashio::log.info "HA_AUTO_LOGIN=$HA_AUTO_LOGIN"
 
 case "${BROWSER_ENGINE,,}" in
     chromium|chrome)
