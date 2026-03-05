@@ -148,7 +148,7 @@ EDITOR_HTML = """<!doctype html>
     p { margin: 0; color: var(--muted); }
     .row {
       display: grid;
-      grid-template-columns: 1fr auto auto auto;
+      grid-template-columns: 1fr auto auto auto auto auto auto;
       gap: 10px;
       align-items: center;
     }
@@ -216,6 +216,9 @@ EDITOR_HTML = """<!doctype html>
         </div>
         <button id="loadBtn" type="button">Загрузить</button>
         <button id="validateBtn" type="button">Проверить JSON</button>
+        <button id="formatBtn" type="button">Форматировать</button>
+        <button id="newSlideBtn" type="button">+ Страница</button>
+        <button id="starterBtn" type="button">Шаблон</button>
         <button id="saveBtn" type="button">Сохранить</button>
       </div>
       <div id="status" class="status"></div>
@@ -239,6 +242,9 @@ EDITOR_HTML = """<!doctype html>
     const loadBtn = document.getElementById('loadBtn');
     const saveBtn = document.getElementById('saveBtn');
     const validateBtn = document.getElementById('validateBtn');
+    const formatBtn = document.getElementById('formatBtn');
+    const newSlideBtn = document.getElementById('newSlideBtn');
+    const starterBtn = document.getElementById('starterBtn');
 
     tokenEl.value = window.localStorage.getItem('haoskiosk.editor.token') || '';
 
@@ -258,10 +264,47 @@ EDITOR_HTML = """<!doctype html>
       window.localStorage.setItem('haoskiosk.editor.token', tokenEl.value.trim());
     }
 
+    function editorConfigUrl() {
+      return new URL('editor/config', window.location.href).toString();
+    }
+
+    function starterConfig() {
+      return {
+        version: 1,
+        slides: [
+          {
+            id: 'page-2',
+            layout: 'forecast+cards',
+            cardStyle: 'mini',
+            title: 'Ритм недели',
+            subtitle: 'Погода + короткие маркеры дома',
+            stampCaption: 'Диапазон',
+            cards: []
+          },
+          {
+            id: 'page-3',
+            layout: 'cards',
+            cardStyle: 'full',
+            title: 'Дом',
+            subtitle: 'Сводка сенсоров',
+            stampCaption: 'Страница',
+            cards: []
+          }
+        ]
+      };
+    }
+
+    function setEditorValue(config, statusMessage) {
+      editorEl.value = JSON.stringify(config, null, 2);
+      if (statusMessage) {
+        setStatus(statusMessage, 'ok');
+      }
+    }
+
     async function loadConfig() {
       persistToken();
       setStatus('Загрузка…');
-      const response = await fetch('/editor/config', { headers: headers() });
+      const response = await fetch(editorConfigUrl(), { headers: headers() });
       const data = await response.json();
       if (!response.ok || !data.success) {
         throw new Error(data.error || `HTTP ${response.status}`);
@@ -274,11 +317,45 @@ EDITOR_HTML = """<!doctype html>
       return JSON.parse(editorEl.value);
     }
 
+    function readConfigOrDefault() {
+      if (!editorEl.value.trim()) {
+        return starterConfig();
+      }
+      return parseConfig();
+    }
+
+    function formatJsonInEditor() {
+      const parsed = readConfigOrDefault();
+      setEditorValue(parsed, 'JSON отформатирован.');
+    }
+
+    function addSlide() {
+      const cfg = readConfigOrDefault();
+      if (!Array.isArray(cfg.slides)) {
+        cfg.slides = [];
+      }
+      const nextIndex = cfg.slides.length + 2;
+      cfg.slides.push({
+        id: `page-${nextIndex}`,
+        layout: 'cards',
+        cardStyle: 'full',
+        title: `Страница ${nextIndex}`,
+        subtitle: 'Новая секция карусели',
+        stampCaption: 'Страница',
+        cards: []
+      });
+      setEditorValue(cfg, `Добавлена страница ${nextIndex}.`);
+    }
+
+    function applyStarterTemplate() {
+      setEditorValue(starterConfig(), 'Применён стартовый шаблон карусели.');
+    }
+
     async function saveConfig() {
       persistToken();
       const parsed = parseConfig();
       setStatus('Сохранение…');
-      const response = await fetch('/editor/config', {
+      const response = await fetch(editorConfigUrl(), {
         method: 'POST',
         headers: headers(),
         body: JSON.stringify(parsed),
@@ -302,6 +379,18 @@ EDITOR_HTML = """<!doctype html>
       } catch (error) {
         setStatus(String(error), 'bad');
       }
+    });
+
+    formatBtn.addEventListener('click', () => {
+      try { formatJsonInEditor(); } catch (error) { setStatus(String(error), 'bad'); }
+    });
+
+    newSlideBtn.addEventListener('click', () => {
+      try { addSlide(); } catch (error) { setStatus(String(error), 'bad'); }
+    });
+
+    starterBtn.addEventListener('click', () => {
+      try { applyStarterTemplate(); } catch (error) { setStatus(String(error), 'bad'); }
     });
 
     saveBtn.addEventListener('click', async () => {
@@ -1108,7 +1197,15 @@ async def security_middleware(
     if cmd_name is None:
         return await handler(request)
 
-    if REST_BEARER_TOKEN:
+    is_ingress_request = any(
+        request.headers.get(header)
+        for header in ("X-Ingress-Path", "X-Hassio-Key", "X-Hassio-Ingress")
+    )
+
+    # Allow ingress-authenticated editor traffic without REST token prompt.
+    allow_editor_via_ingress = cmd_name == EDITOR_CONFIG_COMMAND and is_ingress_request
+
+    if REST_BEARER_TOKEN and not allow_editor_via_ingress:
         auth_header = request.headers.get("Authorization", "")
         if auth_header != f"Bearer {REST_BEARER_TOKEN}":
             logging.warning("[auth] Invalid REST_BEARER_TOKEN from %s", remote_ip)
@@ -1116,7 +1213,7 @@ async def security_middleware(
                 {"success": False, "error": "Invalid or missing REST_BEARER_TOKEN Authorization token"},
                 status=401,)
 
-    if cmd_name in PROTECTED_COMMANDS or cmd_name == EDITOR_CONFIG_COMMAND:
+    if cmd_name in PROTECTED_COMMANDS or (cmd_name == EDITOR_CONFIG_COMMAND and not allow_editor_via_ingress):
         if  remote_ip not in ("127.0.0.1", "::1", "localhost") and REST_BEARER_TOKEN is None:
             logging.warning("[security] Blocked protected REST command '%s' from non-localhost IP: %s", cmd_name, remote_ip)
             return web.json_response({

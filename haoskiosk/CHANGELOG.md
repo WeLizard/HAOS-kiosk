@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.3.2-welizard.3 - March 2026
+
+- Fix ingress editor API path resolution by using a URL relative to current page
+  (works both for direct `http://host:port/` and `/api/hassio_ingress/...`).
+- Set add-on metadata `ingress_port` to `8080` so default ingress routing matches
+  the default REST/UI server port out of the box.
+
+## v1.3.2-welizard.2 - March 2026
+
+- Expose the add-on ingress UI as a proper sidebar panel (`panel_title` + `panel_icon`)
+  so the scene editor is discoverable from Home Assistant UI.
+- Allow `/editor/config` reads/writes through ingress-authenticated requests even when
+  `REST_BEARER_TOKEN` is enabled, removing the extra token prompt for normal HA usage.
+- Add scene-editing convenience actions in the editor (`Форматировать`, `+ Страница`,
+  `Шаблон`) to make carousel customization possible without manual JSON scaffolding.
+
 ## v1.3.2-welizard.1 - March 2026
 
 - Fix supervisor update detection by bumping to a clear semver successor after 1.3.1-welizard.8.
