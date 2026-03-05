@@ -93,13 +93,30 @@ ALLOW_ALL_USER_COMMANDS: bool = os.getenv("ALLOW_ALL_USER_COMMANDS", "false").lo
 MAX_CONCURRENT_COMMANDS: int = 5
 SHORT_TIMEOUT: int = 5  # Timeout used for simple commands
 
-DEFAULT_LAUNCH_URL = f"{(os.getenv('HA_URL') or 'about:blank').rstrip('/')}/{os.getenv('HA_DASHBOARD') or ''}".strip('/')
 EDITOR_CONFIG_COMMAND = "__editor_config__"
 
 DEFAULT_DISPLAY_CONFIG: dict[str, Any] = {
     "version": 1,
     "slides": []
 }
+
+
+def compose_target_url(ha_url: str | None, ha_dashboard: str | None) -> str:
+    """Compose default kiosk launch URL from HA base and dashboard option."""
+    base_url = (ha_url or "about:blank").strip()
+    dashboard = (ha_dashboard or "").strip()
+    if dashboard.startswith(("http://", "https://")):
+        return dashboard
+    if not dashboard:
+        return base_url or "about:blank"
+    return f"{base_url.rstrip('/')}/{dashboard.lstrip('/')}"
+
+
+DEFAULT_LAUNCH_URL = (
+    os.getenv("HA_TARGET_URL")
+    or compose_target_url(os.getenv("HA_URL"), os.getenv("HA_DASHBOARD"))
+    or "about:blank"
+)
 
 EDITOR_HTML = """<!doctype html>
 <html lang="ru">

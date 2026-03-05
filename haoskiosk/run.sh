@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.2-welizard.5
+# Version: 1.3.2-welizard.8
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -163,6 +163,39 @@ load_config_var COMMAND_WHITELIST "^$"  # Default is no commands allowed
 load_config_var TOUCH_DEBUG_LEVEL 1
 load_config_var DEBUG_MODE false
 load_config_var VNC_SERVER ""  1 #Mask password in log
+
+compose_target_url() {
+    local base_url="$1"
+    local dashboard_path="$2"
+
+    # Trim simple surrounding whitespace.
+    base_url="$(echo "$base_url" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    dashboard_path="$(echo "$dashboard_path" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+    # Allow absolute dashboard URLs directly from config.
+    if [[ "$dashboard_path" =~ ^https?:// ]]; then
+        printf '%s' "$dashboard_path"
+        return
+    fi
+
+    if [ -z "$base_url" ]; then
+        base_url="about:blank"
+    fi
+
+    if [ -z "$dashboard_path" ]; then
+        printf '%s' "$base_url"
+        return
+    fi
+
+    printf '%s/%s' "${base_url%/}" "${dashboard_path#/}"
+}
+
+HA_TARGET_URL="$(compose_target_url "$HA_URL" "$HA_DASHBOARD")"
+if [ -z "$HA_TARGET_URL" ]; then
+    HA_TARGET_URL="about:blank"
+fi
+export HA_TARGET_URL
+bashio::log.info "HA_TARGET_URL=$HA_TARGET_URL"
 
 if [ -z "$INGRESS_PORT" ]; then
     INGRESS_PORT="$INGRESS_RUNTIME_PORT"
@@ -853,8 +886,8 @@ if [ "$DEBUG_MODE" != true ]; then
         seed_chromium_preferences
     fi
 
-    "$BROWSER" "${BROWSER_FLAGS[@]}" "$HA_URL/$HA_DASHBOARD" &
-    bashio::log.info "Launching $BROWSER browser(PID=$!): $HA_URL/$HA_DASHBOARD"
+    "$BROWSER" "${BROWSER_FLAGS[@]}" "$HA_TARGET_URL" &
+    bashio::log.info "Launching $BROWSER browser(PID=$!): $HA_TARGET_URL"
 
     if [ "$BROWSER_ENGINE" = "chromium" ]; then
         python3 -u /chromium_watchdog.py &

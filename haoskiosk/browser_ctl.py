@@ -24,9 +24,6 @@ from aiohttp import ClientSession, ClientTimeout, WSMsgType  # type: ignore[impo
 BROWSER_ENGINE = (os.getenv("BROWSER_ENGINE") or "chromium").strip().lower()
 CHROMIUM_DEVTOOLS_PORT = int(os.getenv("CHROMIUM_DEVTOOLS_PORT", "9222"))
 CHROMIUM_DEVTOOLS_HOST = os.getenv("CHROMIUM_DEVTOOLS_HOST", "127.0.0.1")
-DEFAULT_LAUNCH_URL = (
-    f"{(os.getenv('HA_URL') or 'about:blank').rstrip('/')}/{os.getenv('HA_DASHBOARD') or ''}"
-).strip("/") or "about:blank"
 CLIENT_TIMEOUT = ClientTimeout(total=5)
 
 VALID_URL_REGEX = re.compile(
@@ -37,6 +34,23 @@ VALID_URL_REGEX = re.compile(
     r"(?::\d{1,5})?"
     r"(?:/?|[/?][^\s]*)?$",
     re.IGNORECASE,
+)
+
+def compose_target_url(ha_url: str | None, ha_dashboard: str | None) -> str:
+    """Compose the default launch URL from HA base URL and dashboard option."""
+    base_url = (ha_url or "about:blank").strip()
+    dashboard = (ha_dashboard or "").strip()
+    if dashboard.startswith(("http://", "https://")):
+        return dashboard
+    if not dashboard:
+        return base_url or "about:blank"
+    return f"{base_url.rstrip('/')}/{dashboard.lstrip('/')}"
+
+
+DEFAULT_LAUNCH_URL = (
+    os.getenv("HA_TARGET_URL")
+    or compose_target_url(os.getenv("HA_URL"), os.getenv("HA_DASHBOARD"))
+    or "about:blank"
 )
 
 

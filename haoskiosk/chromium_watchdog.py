@@ -79,11 +79,22 @@ def build_auto_login_script() -> str:
   const delayMs = {LOGIN_DELAY_MS};
   window.setTimeout(() => {{
     try {{
-      const usernameField = document.querySelector('input[autocomplete="username"]');
-      const passwordField = document.querySelector('input[autocomplete="current-password"]');
+      const usernameField =
+        document.querySelector('input[autocomplete="username"]') ||
+        document.querySelector('input[name="username"]') ||
+        document.querySelector('input[type="text"]');
+      const passwordField =
+        document.querySelector('input[autocomplete="current-password"]') ||
+        document.querySelector('input[name="password"]') ||
+        document.querySelector('input[type="password"]');
       const checkbox = document.querySelector('ha-checkbox');
-      const submitButton = document.querySelector('ha-button, mwc-button');
-      if (!usernameField || !passwordField || !submitButton) {{
+      const submitButton =
+        document.querySelector('button[type="submit"]') ||
+        document.querySelector('input[type="submit"]') ||
+        document.querySelector('ha-progress-button') ||
+        document.querySelector('ha-button') ||
+        document.querySelector('mwc-button');
+      if (!usernameField || !passwordField) {{
         return {{ ok: false, reason: 'missing-elements' }};
       }}
       usernameField.value = username;
@@ -94,7 +105,18 @@ def build_auto_login_script() -> str:
         checkbox.setAttribute('checked', '');
         checkbox.dispatchEvent(new Event('change', {{ bubbles: true }}));
       }}
-      submitButton.click();
+      if (submitButton && typeof submitButton.click === 'function') {{
+        submitButton.click();
+      }} else {{
+        const form = passwordField.closest('form');
+        if (form && typeof form.requestSubmit === 'function') {{
+          form.requestSubmit();
+        }} else if (form && typeof form.submit === 'function') {{
+          form.submit();
+        }} else {{
+          return {{ ok: false, reason: 'missing-submit' }};
+        }}
+      }}
       return {{ ok: true }};
     }} catch (error) {{
       return {{ ok: false, reason: String(error) }};
@@ -149,7 +171,7 @@ def build_settings_script(sidebar: str, theme: str) -> str:
 
 def is_auth_page(url: str) -> bool:
     """Return True if URL looks like HA auth page."""
-    return bool(re.match(rf"^{re.escape(HA_URL_BASE)}/auth/authorize\?response_type=code", url))
+    return bool(re.match(rf"^{re.escape(HA_URL_BASE)}/auth/authorize(?:\?|$)", url))
 
 
 def is_ha_page(url: str) -> bool:

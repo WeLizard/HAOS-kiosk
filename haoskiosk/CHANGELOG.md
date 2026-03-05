@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.2-welizard.8 - March 2026
+
+- Fix dashboard target URL composition without hardcoding:
+  - support both relative `ha_dashboard` values (e.g. `dashboard-display/0`)
+  - and absolute URLs in `ha_dashboard` (e.g. `https://homeassistant.local/dashboard-display/0`)
+  - export a single runtime `HA_TARGET_URL` used consistently by browser launch and REST helpers.
+- Harden Chromium auto-login flow for newer HA auth UI variants:
+  - broaden username/password/submit selectors
+  - add form submit fallback when button selectors are missing
+  - relax auth-page detection to `/auth/authorize` with any query shape.
+
 ## v1.3.2-welizard.7 - March 2026
 
 - Make `ha_username` and `ha_password` optional in add-on schema so the
