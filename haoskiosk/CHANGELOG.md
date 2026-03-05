@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2-welizard.6 - March 2026
+
+- Fix add-on manifest validation in Home Assistant Supervisor by adding
+  default `options` entries for required schema fields `ha_username` and
+  `ha_password`.
+- This removes `Invalid config: Missing option 'ha_username' in root`
+  when adding/updating the repository.
+
 ## v1.3.2-welizard.5 - March 2026
 
 - Fix ingress/REST port drift by aligning runtime fallback `INGRESS_PORT` with
