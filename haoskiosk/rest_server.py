@@ -1304,6 +1304,7 @@ async def create_app() -> web.Application:
             app.router.add_post(route, make_handler)
 
     # === Special routes ===
+    editor_page.cmd_name = EDITOR_CONFIG_COMMAND  # type: ignore[attr-defined]
     editor_get_config.cmd_name = EDITOR_CONFIG_COMMAND  # type: ignore[attr-defined]
     editor_save_config.cmd_name = EDITOR_CONFIG_COMMAND  # type: ignore[attr-defined]
     app.router.add_get("/", editor_page)

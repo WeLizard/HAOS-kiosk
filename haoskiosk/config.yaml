@@ -3,7 +3,7 @@ name: "HAOS Kiosk Display (Welizard Chromium Fork)"
 description: |
   Chromium/WebGL-focused Welizard fork of the original HAOS Kiosk Display by
   Jeff Kosowsky for local HAOS dashboard screens and touch displays.
-version: "1.3.2-welizard.8"
+version: "1.3.2-welizard.9"
 slug: "haoskiosk"
 
 arch:
@@ -17,7 +17,7 @@ startup: application
 host_network: true
 init: false
 ingress: true
-ingress_port: 8080
+ingress_port: 8099
 panel_title: "Kiosk Display"
 panel_icon: "mdi:television-classic"
 homeassistant_api: true
@@ -95,7 +95,7 @@ options:
   audio_sink: "auto"
   rest_ip: "127.0.0.1"
   rest_port: 8080
-  ingress_runtime_port: 8080
+  ingress_runtime_port: 8099
   rest_bearer_token: ""
   gestures:
     - '"1_ANY_1_CORNER_TOPRIGHT": {"cmds": "kiosk.toggle_keyboard", "msg": "Toggling Onboard keyboard..."}'

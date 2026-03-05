@@ -263,7 +263,7 @@ Note for security REST server only listens on localhost (127.0.0.1)
 ### Ingress Runtime Port
 
 Port used by Home Assistant ingress when opening the add-on Web UI.
-(Default: 8080)
+(Default: 8099)
 
 This is an advanced recovery knob intended for port-drift troubleshooting.
 In normal setups it should remain aligned with add-on metadata

@@ -92,8 +92,10 @@ CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
 CHROMIUM_GL_MODE="${CHROMIUM_GL_MODE:-angle}"
 CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-default}"
 # If INGRESS_PORT is injected by Supervisor/runtime, it wins.
-# Otherwise we resolve it from add-on option INGRESS_RUNTIME_PORT (default 8080).
+# Otherwise we resolve it from add-on option INGRESS_RUNTIME_PORT (default 8099).
 INGRESS_PORT="${INGRESS_PORT:-}"
+# Ingress listener must be reachable by Supervisor proxy.
+INGRESS_BIND_IP="${INGRESS_BIND_IP:-0.0.0.0}"
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
@@ -202,6 +204,8 @@ if [ -z "$INGRESS_PORT" ]; then
 fi
 export INGRESS_PORT
 bashio::log.info "INGRESS_PORT=$INGRESS_PORT"
+export INGRESS_BIND_IP
+bashio::log.info "INGRESS_BIND_IP=$INGRESS_BIND_IP"
 
 # Resolve optional HA auto-login mode.
 # Auto-login is enabled only when both username and password are configured.
@@ -843,8 +847,14 @@ python3 -u /rest_server.py &
 
 #### Start dedicated ingress REST/UI server on ingress port (if different from REST_PORT)
 if [ "$REST_PORT" != "$INGRESS_PORT" ]; then
-    bashio::log.info "Starting HAOSKiosk ingress REST/UI server on 127.0.0.1:$INGRESS_PORT..."
-    REST_IP="127.0.0.1" REST_PORT="$INGRESS_PORT" python3 -u /rest_server.py &
+    bashio::log.info "Starting HAOSKiosk ingress REST/UI server on $INGRESS_BIND_IP:$INGRESS_PORT..."
+    REST_IP="$INGRESS_BIND_IP" REST_PORT="$INGRESS_PORT" REST_INGRESS_MODE=true python3 -u /rest_server.py &
+else
+    case "$REST_IP" in
+        127.0.0.1|::1|localhost)
+            bashio::log.warning "REST_PORT equals INGRESS_PORT while REST_IP is loopback ($REST_IP). Ingress web UI may be unreachable."
+            ;;
+    esac
 fi
 
 #### Optionally start vnc server

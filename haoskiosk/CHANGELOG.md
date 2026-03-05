@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.2-welizard.9 - March 2026
+
+- Fix Home Assistant Web UI `502 Bad Gateway` for `Open Web Interface` without hardcoding:
+  - set add-on metadata `ingress_port` back to a dedicated ingress listener (`8099`)
+  - set `ingress_runtime_port` default to `8099` to match metadata by default.
+- Start dedicated ingress REST/UI server on `0.0.0.0:$INGRESS_PORT` when ingress and REST ports differ,
+  while preserving regular REST automation endpoint on configured `rest_ip/rest_port`.
+- Harden editor ingress access checks by marking the root editor page route as protected editor traffic,
+  so ingress-authenticated flow and token rules are applied consistently.
+
 ## v1.3.2-welizard.8 - March 2026
 
 - Fix dashboard target URL composition without hardcoding:
