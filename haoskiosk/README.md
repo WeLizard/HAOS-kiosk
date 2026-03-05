@@ -103,11 +103,11 @@ ______________________________________________________________________
 
 ## Configuration Options
 
-### HA Username [required]
+### HA Username [optional]
 
 Enter your Home Assistant login name.
 
-### HA Password [required]
+### HA Password [optional]
 
 Enter your Home Assistant password.
 

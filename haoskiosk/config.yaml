@@ -3,7 +3,7 @@ name: "HAOS Kiosk Display (Welizard Chromium Fork)"
 description: |
   Chromium/WebGL-focused Welizard fork of the original HAOS Kiosk Display by
   Jeff Kosowsky for local HAOS dashboard screens and touch displays.
-version: "1.3.2-welizard.6"
+version: "1.3.2-welizard.7"
 slug: "haoskiosk"
 
 arch:
@@ -114,8 +114,8 @@ options:
   debug_mode: false
 
 schema:
-  ha_username: str
-  ha_password: password
+  ha_username: str?
+  ha_password: password?
   ha_url: str
   ha_dashboard: str?
   login_delay: float(0,)

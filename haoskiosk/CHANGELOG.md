@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.2-welizard.7 - March 2026
+
+- Make `ha_username` and `ha_password` optional in add-on schema so the
+  manifest remains valid even without credentials.
+- Remove hard startup failure when HA credentials are empty.
+- Add explicit `HA_AUTO_LOGIN` runtime mode:
+  - enabled only when both username and password are configured
+  - disabled otherwise (kiosk still starts and can use existing HA session)
+- Update option descriptions to reflect optional auto-login behavior.
+
 ## v1.3.2-welizard.6 - March 2026
 
 - Fix add-on manifest validation in Home Assistant Supervisor by adding

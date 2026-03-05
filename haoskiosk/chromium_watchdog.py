@@ -32,6 +32,13 @@ HA_URL_BASE = re.match(r"^(https?://[%w%.%-]+(?::\d+)?)", HA_URL)
 HA_URL_BASE = HA_URL_BASE.group(1).rstrip("/") if HA_URL_BASE else HA_URL
 HA_USERNAME = os.getenv("HA_USERNAME") or ""
 HA_PASSWORD = os.getenv("HA_PASSWORD") or ""
+RAW_AUTO_LOGIN = (os.getenv("HA_AUTO_LOGIN") or "").strip().lower()
+if RAW_AUTO_LOGIN in {"1", "true", "yes", "on"}:
+    HA_AUTO_LOGIN = True
+elif RAW_AUTO_LOGIN in {"0", "false", "no", "off"}:
+    HA_AUTO_LOGIN = False
+else:
+    HA_AUTO_LOGIN = bool(HA_USERNAME and HA_PASSWORD)
 LOGIN_DELAY_MS = int(float(os.getenv("LOGIN_DELAY") or "1") * 1000)
 BROWSER_REFRESH = max(0, int(os.getenv("BROWSER_REFRESH") or "600"))
 DARK_MODE = (os.getenv("DARK_MODE") or "true").strip().lower() == "true"
@@ -167,12 +174,13 @@ async def main() -> None:
     settings_script = build_settings_script(sidebar, theme)
 
     logger.info(
-        "Chromium watchdog started: HA_URL=%s LOGIN_DELAY=%.1fs REFRESH=%ss SIDEBAR=%s THEME=%s",
+        "Chromium watchdog started: HA_URL=%s LOGIN_DELAY=%.1fs REFRESH=%ss SIDEBAR=%s THEME=%s AUTO_LOGIN=%s",
         HA_URL,
         LOGIN_DELAY_MS / 1000,
         BROWSER_REFRESH,
         sidebar,
         theme,
+        HA_AUTO_LOGIN,
     )
 
     last_url = ""
@@ -189,7 +197,7 @@ async def main() -> None:
                 logger.info("URL: %s", url)
                 last_url = url
 
-            if url and is_auth_page(url) and url != last_auth_url:
+            if HA_AUTO_LOGIN and url and is_auth_page(url) and url != last_auth_url:
                 await controller.evaluate(auto_login_script)
                 last_auth_url = url
                 logger.info("Triggered HA auto-login for %s", url)

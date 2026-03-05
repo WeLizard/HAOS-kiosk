@@ -2,10 +2,10 @@
 configuration:
   ha_username:
     name: "HA Username"
-    description: "Home Assistant login user name [Required]"
+    description: "Home Assistant login user name for optional auto-login [Default: \"\"]"
   ha_password:
     name: "HA Password"
-    description: "Home Assistant login password [Required]"
+    description: "Home Assistant login password for optional auto-login [Default: \"\"]"
   ha_url:
     name: "HA URL"
     description: |
