@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2-welizard.5 - March 2026
+
+- Fix ingress/REST port drift by aligning runtime fallback `INGRESS_PORT` with
+  add-on metadata `ingress_port` (`8080`), so Home Assistant ingress does not
+  break with `502 Bad Gateway` when `rest_port` is customized.
+- Add configurable `ingress_runtime_port` option so ingress target can be
+  corrected from add-on settings without editing `run.sh`.
+
 ## v1.3.2-welizard.3 - March 2026
 
 - Fix ingress editor API path resolution by using a URL relative to current page

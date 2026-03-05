@@ -118,6 +118,12 @@ configuration:
     name: "REST Port"
     description: |
       Listening port for REST API server (1024-49151) [Default: 8080]
+  ingress_runtime_port:
+    name: "Ingress Runtime Port"
+    description: |
+      Port used by Home Assistant ingress proxy target [Default: 8080].
+      Keep this aligned with add-on ingress metadata unless you are
+      intentionally overriding ingress routing.
   rest_authorization_token:
     name: "REST Authorization Token"
     description: |

@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.2-welizard.1
+# Version: 1.3.2-welizard.5
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -32,6 +32,7 @@
 #         AUDIO_SINK
 #         REST_PORT
 #         REST_IP
+#         INGRESS_RUNTIME_PORT
 #         REST_BEARER_TOKEN
 #         COMMAND_WHITELIST
 #         TOUCH_DEBUG_LEVEL
@@ -90,7 +91,9 @@ CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
 CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
 CHROMIUM_GL_MODE="${CHROMIUM_GL_MODE:-angle}"
 CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-default}"
-INGRESS_PORT="${INGRESS_PORT:-8099}"
+# If INGRESS_PORT is injected by Supervisor/runtime, it wins.
+# Otherwise we resolve it from add-on option INGRESS_RUNTIME_PORT (default 8080).
+INGRESS_PORT="${INGRESS_PORT:-}"
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
@@ -154,11 +157,18 @@ load_config_var XORG_APPEND_REPLACE append
 load_config_var AUDIO_SINK auto
 load_config_var REST_PORT 8080
 load_config_var REST_IP "127.0.0.1"
+load_config_var INGRESS_RUNTIME_PORT 8080
 load_config_var REST_BEARER_TOKEN "" 1  # Mask token in log
 load_config_var COMMAND_WHITELIST "^$"  # Default is no commands allowed
 load_config_var TOUCH_DEBUG_LEVEL 1
 load_config_var DEBUG_MODE false
 load_config_var VNC_SERVER ""  1 #Mask password in log
+
+if [ -z "$INGRESS_PORT" ]; then
+    INGRESS_PORT="$INGRESS_RUNTIME_PORT"
+fi
+export INGRESS_PORT
+bashio::log.info "INGRESS_PORT=$INGRESS_PORT"
 
 # Validate environment variables set by config.yaml
 if [ -z "$HA_USERNAME" ] || [ -z "$HA_PASSWORD" ]; then
@@ -791,7 +801,7 @@ python3 -u /mouse_touch_inputs.py -d "$TOUCH_DEBUG_LEVEL" -w "$COMMAND_WHITELIST
 bashio::log.info "Starting HAOSKiosk REST server..."
 python3 -u /rest_server.py &
 
-#### Start dedicated ingress REST/UI server on fixed port 8099 (if different from REST_PORT)
+#### Start dedicated ingress REST/UI server on ingress port (if different from REST_PORT)
 if [ "$REST_PORT" != "$INGRESS_PORT" ]; then
     bashio::log.info "Starting HAOSKiosk ingress REST/UI server on 127.0.0.1:$INGRESS_PORT..."
     REST_IP="127.0.0.1" REST_PORT="$INGRESS_PORT" python3 -u /rest_server.py &
