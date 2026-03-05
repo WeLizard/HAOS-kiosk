@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.2-welizard.10
+# Version: 1.3.2-welizard.11
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -96,6 +96,8 @@ CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-default}"
 INGRESS_PORT="${INGRESS_PORT:-}"
 # Ingress listener must be reachable by Supervisor proxy.
 INGRESS_BIND_IP="${INGRESS_BIND_IP:-0.0.0.0}"
+# Optional compatibility ingress listener (auto-selected between 8080/8099 if empty).
+INGRESS_COMPAT_PORT="${INGRESS_COMPAT_PORT:-}"
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
@@ -223,6 +225,18 @@ if ! is_valid_port "$REST_PORT"; then
     REST_PORT=8080
 fi
 
+if [ -z "$INGRESS_COMPAT_PORT" ]; then
+    case "$INGRESS_PORT" in
+        8099) INGRESS_COMPAT_PORT=8080 ;;
+        8080) INGRESS_COMPAT_PORT=8099 ;;
+        *) INGRESS_COMPAT_PORT="" ;;
+    esac
+fi
+if [ -n "$INGRESS_COMPAT_PORT" ] && ! is_valid_port "$INGRESS_COMPAT_PORT"; then
+    bashio::log.warning "Invalid INGRESS_COMPAT_PORT='$INGRESS_COMPAT_PORT'; disabling compatibility listener"
+    INGRESS_COMPAT_PORT=""
+fi
+
 if [ "$REST_PORT" = "$INGRESS_PORT" ]; then
     case "$REST_IP" in
         127.0.0.1|::1|localhost)
@@ -246,6 +260,10 @@ export REST_PORT
 bashio::log.info "REST_PORT(final)=$REST_PORT"
 export INGRESS_PORT
 bashio::log.info "INGRESS_PORT=$INGRESS_PORT"
+if [ -n "$INGRESS_COMPAT_PORT" ]; then
+    export INGRESS_COMPAT_PORT
+    bashio::log.info "INGRESS_COMPAT_PORT=$INGRESS_COMPAT_PORT"
+fi
 export INGRESS_BIND_IP
 bashio::log.info "INGRESS_BIND_IP=$INGRESS_BIND_IP"
 
@@ -887,12 +905,30 @@ python3 -u /mouse_touch_inputs.py -d "$TOUCH_DEBUG_LEVEL" -w "$COMMAND_WHITELIST
 bashio::log.info "Starting HAOSKiosk REST server..."
 python3 -u /rest_server.py &
 
-#### Start dedicated ingress REST/UI server on ingress port (if different from REST_PORT)
-if [ "$REST_PORT" != "$INGRESS_PORT" ]; then
-    bashio::log.info "Starting HAOSKiosk ingress REST/UI server on $INGRESS_BIND_IP:$INGRESS_PORT..."
-    REST_IP="$INGRESS_BIND_IP" REST_PORT="$INGRESS_PORT" REST_INGRESS_MODE=true python3 -u /rest_server.py &
-else
-    bashio::log.info "Ingress and REST share one listener on $REST_IP:$REST_PORT"
+start_ingress_listener() {
+    local port="$1"
+    [ -n "$port" ] || return 0
+
+    if [ "$port" = "$REST_PORT" ]; then
+        case "$REST_IP" in
+            127.0.0.1|::1|localhost)
+                bashio::log.warning "Ingress port $port matches loopback REST listener ($REST_IP). Ingress may be unreachable."
+                ;;
+            *)
+                bashio::log.info "Ingress and REST share one listener on $REST_IP:$REST_PORT"
+                ;;
+        esac
+        return 0
+    fi
+
+    bashio::log.info "Starting HAOSKiosk ingress REST/UI server on $INGRESS_BIND_IP:$port..."
+    REST_IP="$INGRESS_BIND_IP" REST_PORT="$port" REST_INGRESS_MODE=true python3 -u /rest_server.py &
+}
+
+#### Start ingress REST/UI listeners (primary + optional compatibility port)
+start_ingress_listener "$INGRESS_PORT"
+if [ -n "$INGRESS_COMPAT_PORT" ] && [ "$INGRESS_COMPAT_PORT" != "$INGRESS_PORT" ]; then
+    start_ingress_listener "$INGRESS_COMPAT_PORT"
 fi
 
 #### Optionally start vnc server

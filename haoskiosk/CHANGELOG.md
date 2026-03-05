@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2-welizard.11 - March 2026
+
+- Fix persistent ingress `502` when runtime options and ingress metadata drift:
+  - add compatibility ingress listener auto-mode (`8080`/`8099`) so legacy installs keep working.
+  - keep existing REST-vs-ingress conflict self-heal when `rest_ip` is loopback.
+- Improve ingress startup diagnostics by logging compatibility listener selection.
+
 ## v1.3.2-welizard.10 - March 2026
 
 - Fix persistent ingress `502 Bad Gateway` for stale/local installs by hardening runtime port resolution:
