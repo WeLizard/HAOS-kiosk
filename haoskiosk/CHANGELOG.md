@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.2-welizard.10 - March 2026
+
+- Fix persistent ingress `502 Bad Gateway` for stale/local installs by hardening runtime port resolution:
+  - correct internal fallback for `ingress_runtime_port` to `8099` in `run.sh`
+  - validate ingress/rest ports and auto-recover from invalid values.
+- Add startup self-heal when `rest_ip` is loopback and `rest_port == ingress_port`:
+  - auto-shift REST listener to a safe local port
+  - keep ingress editor listener reachable on `0.0.0.0:$INGRESS_PORT`.
+
 ## v1.3.2-welizard.9 - March 2026
 
 - Fix Home Assistant Web UI `502 Bad Gateway` for `Open Web Interface` without hardcoding:

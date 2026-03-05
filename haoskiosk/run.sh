@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.2-welizard.8
+# Version: 1.3.2-welizard.10
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -159,12 +159,18 @@ load_config_var XORG_APPEND_REPLACE append
 load_config_var AUDIO_SINK auto
 load_config_var REST_PORT 8080
 load_config_var REST_IP "127.0.0.1"
-load_config_var INGRESS_RUNTIME_PORT 8080
+load_config_var INGRESS_RUNTIME_PORT 8099
 load_config_var REST_BEARER_TOKEN "" 1  # Mask token in log
 load_config_var COMMAND_WHITELIST "^$"  # Default is no commands allowed
 load_config_var TOUCH_DEBUG_LEVEL 1
 load_config_var DEBUG_MODE false
 load_config_var VNC_SERVER ""  1 #Mask password in log
+
+is_valid_port() {
+    local maybe_port="$1"
+    [[ "$maybe_port" =~ ^[0-9]+$ ]] || return 1
+    [ "$maybe_port" -ge 1024 ] && [ "$maybe_port" -le 65535 ]
+}
 
 compose_target_url() {
     local base_url="$1"
@@ -202,6 +208,42 @@ bashio::log.info "HA_TARGET_URL=$HA_TARGET_URL"
 if [ -z "$INGRESS_PORT" ]; then
     INGRESS_PORT="$INGRESS_RUNTIME_PORT"
 fi
+
+if ! is_valid_port "$INGRESS_PORT"; then
+    bashio::log.warning "Invalid INGRESS_PORT='$INGRESS_PORT'; falling back to INGRESS_RUNTIME_PORT='$INGRESS_RUNTIME_PORT'"
+    INGRESS_PORT="$INGRESS_RUNTIME_PORT"
+fi
+if ! is_valid_port "$INGRESS_PORT"; then
+    bashio::log.warning "Invalid INGRESS_RUNTIME_PORT='$INGRESS_RUNTIME_PORT'; falling back to 8099"
+    INGRESS_PORT=8099
+fi
+
+if ! is_valid_port "$REST_PORT"; then
+    bashio::log.warning "Invalid REST_PORT='$REST_PORT'; falling back to 8080"
+    REST_PORT=8080
+fi
+
+if [ "$REST_PORT" = "$INGRESS_PORT" ]; then
+    case "$REST_IP" in
+        127.0.0.1|::1|localhost)
+            ALT_REST_PORT=8080
+            if [ "$ALT_REST_PORT" = "$INGRESS_PORT" ]; then
+                ALT_REST_PORT=8081
+            fi
+            if ! is_valid_port "$ALT_REST_PORT"; then
+                ALT_REST_PORT="$((REST_PORT + 1))"
+                if ! is_valid_port "$ALT_REST_PORT"; then
+                    ALT_REST_PORT=8081
+                fi
+            fi
+            bashio::log.warning "REST_PORT conflicts with INGRESS_PORT on loopback REST_IP='$REST_IP'; auto-adjusting REST_PORT to '$ALT_REST_PORT'"
+            REST_PORT="$ALT_REST_PORT"
+            ;;
+    esac
+fi
+
+export REST_PORT
+bashio::log.info "REST_PORT(final)=$REST_PORT"
 export INGRESS_PORT
 bashio::log.info "INGRESS_PORT=$INGRESS_PORT"
 export INGRESS_BIND_IP
@@ -850,11 +892,7 @@ if [ "$REST_PORT" != "$INGRESS_PORT" ]; then
     bashio::log.info "Starting HAOSKiosk ingress REST/UI server on $INGRESS_BIND_IP:$INGRESS_PORT..."
     REST_IP="$INGRESS_BIND_IP" REST_PORT="$INGRESS_PORT" REST_INGRESS_MODE=true python3 -u /rest_server.py &
 else
-    case "$REST_IP" in
-        127.0.0.1|::1|localhost)
-            bashio::log.warning "REST_PORT equals INGRESS_PORT while REST_IP is loopback ($REST_IP). Ingress web UI may be unreachable."
-            ;;
-    esac
+    bashio::log.info "Ingress and REST share one listener on $REST_IP:$REST_PORT"
 fi
 
 #### Optionally start vnc server
