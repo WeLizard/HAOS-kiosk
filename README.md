@@ -266,6 +266,15 @@ Optional authorization token for REST API. (Default: "") If set, then you
 must add line `-H "Authorization: Bearer <REST_BEARER_TOKEN>"` to REST API
 calls.
 
+### Scene Editor Ownership
+
+HAOS-kiosk no longer owns the ingress scene editor or the renderer scene
+config file.
+
+Use the `OpenClaw Assistant` add-on and its `Open Scene Editor` entry point
+for renderer/scene configuration. HAOS-kiosk remains the browser/device
+runtime and REST automation layer.
+
 ### Gestures
 
 Editable list of JSON-like key-value pairs where the key represents a

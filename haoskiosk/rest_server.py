@@ -83,7 +83,6 @@ __copyright__ = "Copyright 2025 Jeff Kosowsky"
 REST_PORT: int = int(os.getenv("REST_PORT", "8080"))
 REST_IP: str = os.getenv("REST_IP", "127.0.0.1")
 REST_BEARER_TOKEN: str | None = os.getenv("REST_BEARER_TOKEN") or None  # None = no authorization required
-DISPLAY_CONFIG_PATH: str = os.getenv("DISPLAY_CONFIG_PATH", "/config/www/live2d/neiri-slides.json")
 
 # Note setting True is a real security risk since it allows all commands and tokens
 # If just want all programs, set COMMAND_WHITELIST_REGEX to "*"
@@ -92,13 +91,6 @@ ALLOW_ALL_USER_COMMANDS: bool = os.getenv("ALLOW_ALL_USER_COMMANDS", "false").lo
 ### Other Globals
 MAX_CONCURRENT_COMMANDS: int = 5
 SHORT_TIMEOUT: int = 5  # Timeout used for simple commands
-
-EDITOR_CONFIG_COMMAND = "__editor_config__"
-
-DEFAULT_DISPLAY_CONFIG: dict[str, Any] = {
-    "version": 1,
-    "slides": []
-}
 
 
 def compose_target_url(ha_url: str | None, ha_dashboard: str | None) -> str:
@@ -118,12 +110,12 @@ DEFAULT_LAUNCH_URL = (
     or "about:blank"
 )
 
-EDITOR_HTML = """<!doctype html>
+RUNTIME_INFO_HTML = """<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HAOS Kiosk Display Editor</title>
+  <title>HAOS Kiosk Runtime</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -163,56 +155,7 @@ EDITOR_HTML = """<!doctype html>
     h1 { font-size: 28px; letter-spacing: -0.04em; }
     h2 { font-size: 16px; margin-bottom: 10px; }
     p { margin: 0; color: var(--muted); }
-    .row {
-      display: grid;
-      grid-template-columns: 1fr auto auto auto auto auto auto;
-      gap: 10px;
-      align-items: center;
-    }
-    .field {
-      display: grid;
-      gap: 6px;
-    }
-    .field label {
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-    input, textarea, button {
-      font: inherit;
-    }
-    input, textarea {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px 12px;
-      color: var(--text);
-      background: var(--paper);
-    }
-    textarea {
-      min-height: 480px;
-      resize: vertical;
-      font-family: "Consolas", "Cascadia Code", monospace;
-      line-height: 1.45;
-    }
-    button {
-      border: 1px solid rgba(143,184,214,0.3);
-      background: linear-gradient(180deg, rgba(143,184,214,0.16), rgba(143,184,214,0.08));
-      color: var(--text);
-      border-radius: 12px;
-      padding: 10px 14px;
-      cursor: pointer;
-    }
-    button:hover { border-color: rgba(143,184,214,0.5); }
-    .status {
-      min-height: 20px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-    .status.ok { color: var(--ok); }
-    .status.bad { color: var(--bad); }
-    .help code {
+    code {
       background: rgba(255,255,255,0.06);
       padding: 2px 6px;
       border-radius: 6px;
@@ -222,200 +165,21 @@ EDITOR_HTML = """<!doctype html>
 <body>
   <div class="wrap">
     <section class="panel">
-      <h1>HAOS Kiosk Display</h1>
-      <p>Редактор произвольного JSON-конфига страниц дисплея. Это отдельный слой для экрана kiosk, а не замена редактора Lovelace.</p>
+      <h1>HAOS Kiosk Runtime</h1>
+      <p>Этот add-on теперь отвечает только за browser/device runtime: Chromium, power, input, watchdog и REST automation.</p>
     </section>
     <section class="panel">
-      <div class="row">
-        <div class="field">
-          <label for="token">REST Bearer Token</label>
-          <input id="token" type="password" placeholder="Нужен только если токен включён в аддоне">
-        </div>
-        <button id="loadBtn" type="button">Загрузить</button>
-        <button id="validateBtn" type="button">Проверить JSON</button>
-        <button id="formatBtn" type="button">Форматировать</button>
-        <button id="newSlideBtn" type="button">+ Страница</button>
-        <button id="starterBtn" type="button">Шаблон</button>
-        <button id="saveBtn" type="button">Сохранить</button>
-      </div>
-      <div id="status" class="status"></div>
+      <h2>Что изменилось</h2>
+      <p>Ingress scene editor и сохранение scene config вынесены в <strong>OpenClaw Assistant</strong>.</p>
+      <p>HAOS-kiosk больше не владеет renderer/scene конфигом и остаётся только kiosk runtime слоем.</p>
     </section>
     <section class="panel">
-      <h2>Конфиг страниц дисплея</h2>
-      <textarea id="editor" spellcheck="false"></textarea>
-    </section>
-    <section class="panel help">
-      <h2>Как использовать</h2>
-      <p>1. Нажми <code>Загрузить</code>.</p>
-      <p>2. Измени JSON.</p>
-      <p>3. Нажми <code>Сохранить</code>.</p>
-      <p>Файл хранится в Home Assistant по пути <code>/config/www/live2d/neiri-slides.json</code>. Бэкенд редактора не навязывает фиксированную схему: это обычный JSON-объект.</p>
+      <h2>Куда идти дальше</h2>
+      <p>1. Открой add-on <code>OpenClaw Assistant</code> в Home Assistant.</p>
+      <p>2. Используй кнопку <code>Open Scene Editor</code>.</p>
+      <p>3. Там редактируется общий scene config для renderer bundle.</p>
     </section>
   </div>
-  <script>
-    const tokenEl = document.getElementById('token');
-    const editorEl = document.getElementById('editor');
-    const statusEl = document.getElementById('status');
-    const loadBtn = document.getElementById('loadBtn');
-    const saveBtn = document.getElementById('saveBtn');
-    const validateBtn = document.getElementById('validateBtn');
-    const formatBtn = document.getElementById('formatBtn');
-    const newSlideBtn = document.getElementById('newSlideBtn');
-    const starterBtn = document.getElementById('starterBtn');
-
-    tokenEl.value = window.localStorage.getItem('haoskiosk.editor.token') || '';
-
-    function headers() {
-      const headers = { 'Content-Type': 'application/json' };
-      const token = tokenEl.value.trim();
-      if (token) headers.Authorization = `Bearer ${token}`;
-      return headers;
-    }
-
-    function setStatus(text, kind) {
-      statusEl.textContent = text || '';
-      statusEl.className = `status${kind ? ` ${kind}` : ''}`;
-    }
-
-    function persistToken() {
-      window.localStorage.setItem('haoskiosk.editor.token', tokenEl.value.trim());
-    }
-
-    function editorConfigUrl() {
-      return new URL('editor/config', window.location.href).toString();
-    }
-
-    function starterConfig() {
-      return {
-        version: 1,
-        slides: [
-          {
-            id: 'page-2',
-            layout: 'forecast+cards',
-            cardStyle: 'mini',
-            title: 'Ритм недели',
-            subtitle: 'Погода + короткие маркеры дома',
-            stampCaption: 'Диапазон',
-            cards: []
-          },
-          {
-            id: 'page-3',
-            layout: 'cards',
-            cardStyle: 'full',
-            title: 'Дом',
-            subtitle: 'Сводка сенсоров',
-            stampCaption: 'Страница',
-            cards: []
-          }
-        ]
-      };
-    }
-
-    function setEditorValue(config, statusMessage) {
-      editorEl.value = JSON.stringify(config, null, 2);
-      if (statusMessage) {
-        setStatus(statusMessage, 'ok');
-      }
-    }
-
-    async function loadConfig() {
-      persistToken();
-      setStatus('Загрузка…');
-      const response = await fetch(editorConfigUrl(), { headers: headers() });
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || `HTTP ${response.status}`);
-      }
-      editorEl.value = JSON.stringify(data.config, null, 2);
-      setStatus('Конфигурация загружена.', 'ok');
-    }
-
-    function parseConfig() {
-      return JSON.parse(editorEl.value);
-    }
-
-    function readConfigOrDefault() {
-      if (!editorEl.value.trim()) {
-        return starterConfig();
-      }
-      return parseConfig();
-    }
-
-    function formatJsonInEditor() {
-      const parsed = readConfigOrDefault();
-      setEditorValue(parsed, 'JSON отформатирован.');
-    }
-
-    function addSlide() {
-      const cfg = readConfigOrDefault();
-      if (!Array.isArray(cfg.slides)) {
-        cfg.slides = [];
-      }
-      const nextIndex = cfg.slides.length + 2;
-      cfg.slides.push({
-        id: `page-${nextIndex}`,
-        layout: 'cards',
-        cardStyle: 'full',
-        title: `Страница ${nextIndex}`,
-        subtitle: 'Новая секция карусели',
-        stampCaption: 'Страница',
-        cards: []
-      });
-      setEditorValue(cfg, `Добавлена страница ${nextIndex}.`);
-    }
-
-    function applyStarterTemplate() {
-      setEditorValue(starterConfig(), 'Применён стартовый шаблон карусели.');
-    }
-
-    async function saveConfig() {
-      persistToken();
-      const parsed = parseConfig();
-      setStatus('Сохранение…');
-      const response = await fetch(editorConfigUrl(), {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify(parsed),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || `HTTP ${response.status}`);
-      }
-      editorEl.value = JSON.stringify(data.config, null, 2);
-      setStatus('Конфигурация сохранена.', 'ok');
-    }
-
-    loadBtn.addEventListener('click', async () => {
-      try { await loadConfig(); } catch (error) { setStatus(String(error), 'bad'); }
-    });
-
-    validateBtn.addEventListener('click', () => {
-      try {
-        parseConfig();
-        setStatus('JSON синтаксически корректен.', 'ok');
-      } catch (error) {
-        setStatus(String(error), 'bad');
-      }
-    });
-
-    formatBtn.addEventListener('click', () => {
-      try { formatJsonInEditor(); } catch (error) { setStatus(String(error), 'bad'); }
-    });
-
-    newSlideBtn.addEventListener('click', () => {
-      try { addSlide(); } catch (error) { setStatus(String(error), 'bad'); }
-    });
-
-    starterBtn.addEventListener('click', () => {
-      try { applyStarterTemplate(); } catch (error) { setStatus(String(error), 'bad'); }
-    });
-
-    saveBtn.addEventListener('click', async () => {
-      try { await saveConfig(); } catch (error) { setStatus(String(error), 'bad'); }
-    });
-
-    loadConfig().catch((error) => setStatus(String(error), 'bad'));
-  </script>
 </body>
 </html>
 """
@@ -490,32 +254,6 @@ def is_valid_url(url: str) -> bool:
     """Validate URL format (allows http://, https://, bare domain/IP, path, query, fragment)."""
     return bool(url == 'about:blank' or VALID_URL_REGEX.fullmatch(url.strip()))
 
-
-def normalize_display_config(config: Any) -> dict[str, Any]:
-    """Validate the display editor JSON structure without hardcoding semantics."""
-    if not isinstance(config, dict):
-        raise ValueError("Display config must be a JSON object")
-    return cast(dict[str, Any], config)
-
-
-def load_display_config() -> dict[str, Any]:
-    """Load display config JSON from disk or return the built-in default."""
-    if not os.path.exists(DISPLAY_CONFIG_PATH):
-        return normalize_display_config(DEFAULT_DISPLAY_CONFIG)
-    with open(DISPLAY_CONFIG_PATH, "r", encoding="utf-8") as handle:
-        return normalize_display_config(json.load(handle))
-
-
-def save_display_config(config: Any) -> dict[str, Any]:
-    """Persist validated display config atomically."""
-    normalized = normalize_display_config(config)
-    os.makedirs(os.path.dirname(DISPLAY_CONFIG_PATH), exist_ok=True)
-    temp_path = DISPLAY_CONFIG_PATH + ".tmp"
-    with open(temp_path, "w", encoding="utf-8") as handle:
-        json.dump(normalized, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
-    os.replace(temp_path, DISPLAY_CONFIG_PATH)
-    return normalized
 
 # --------------------------------------------------------------------------- #
 # Setup
@@ -1214,15 +952,7 @@ async def security_middleware(
     if cmd_name is None:
         return await handler(request)
 
-    is_ingress_request = any(
-        request.headers.get(header)
-        for header in ("X-Ingress-Path", "X-Hassio-Key", "X-Hassio-Ingress")
-    )
-
-    # Allow ingress-authenticated editor traffic without REST token prompt.
-    allow_editor_via_ingress = cmd_name == EDITOR_CONFIG_COMMAND and is_ingress_request
-
-    if REST_BEARER_TOKEN and not allow_editor_via_ingress:
+    if REST_BEARER_TOKEN:
         auth_header = request.headers.get("Authorization", "")
         if auth_header != f"Bearer {REST_BEARER_TOKEN}":
             logging.warning("[auth] Invalid REST_BEARER_TOKEN from %s", remote_ip)
@@ -1230,7 +960,7 @@ async def security_middleware(
                 {"success": False, "error": "Invalid or missing REST_BEARER_TOKEN Authorization token"},
                 status=401,)
 
-    if cmd_name in PROTECTED_COMMANDS or (cmd_name == EDITOR_CONFIG_COMMAND and not allow_editor_via_ingress):
+    if cmd_name in PROTECTED_COMMANDS:
         if  remote_ip not in ("127.0.0.1", "::1", "localhost") and REST_BEARER_TOKEN is None:
             logging.warning("[security] Blocked protected REST command '%s' from non-localhost IP: %s", cmd_name, remote_ip)
             return web.json_response({
@@ -1248,31 +978,17 @@ async def create_app() -> web.Application:
 
     app = web.Application(middlewares=[security_middleware])
 
-    async def editor_page(_: web.Request) -> web.Response:
-        return web.Response(text=EDITOR_HTML, content_type="text/html")
+    async def runtime_page(_: web.Request) -> web.Response:
+        return web.Response(text=RUNTIME_INFO_HTML, content_type="text/html")
 
-    async def editor_get_config(_: web.Request) -> web.Response:
-        try:
-            config = load_display_config()
-            return web.json_response({"success": True, "config": config})
-        except Exception as exc:
-            logging.exception("Failed to load display config: %s", exc)
-            return web.json_response({"success": False, "error": str(exc)}, status=500)
-
-    async def editor_save_config(request: web.Request) -> web.Response:
-        try:
-            payload = await request.json()
-        except (json.JSONDecodeError, ValueError):
-            return web.json_response({"success": False, "error": "Invalid JSON payload"}, status=400)
-
-        try:
-            config = save_display_config(payload)
-            return web.json_response({"success": True, "config": config})
-        except ValueError as exc:
-            return web.json_response({"success": False, "error": str(exc)}, status=400)
-        except Exception as exc:
-            logging.exception("Failed to save display config: %s", exc)
-            return web.json_response({"success": False, "error": str(exc)}, status=500)
+    async def editor_moved(_: web.Request) -> web.Response:
+        return web.json_response(
+            {
+                "success": False,
+                "error": "Scene editor moved to OpenClaw Assistant ingress (/scene-editor/).",
+            },
+            status=410,
+        )
 
     # Register routes for defined functions
     for fullname, func in FunctionRegistry.items():
@@ -1303,13 +1019,10 @@ async def create_app() -> web.Application:
         else:
             app.router.add_post(route, make_handler)
 
-    # === Special routes ===
-    editor_page.cmd_name = EDITOR_CONFIG_COMMAND  # type: ignore[attr-defined]
-    editor_get_config.cmd_name = EDITOR_CONFIG_COMMAND  # type: ignore[attr-defined]
-    editor_save_config.cmd_name = EDITOR_CONFIG_COMMAND  # type: ignore[attr-defined]
-    app.router.add_get("/", editor_page)
-    app.router.add_get("/editor/config", editor_get_config)
-    app.router.add_post("/editor/config", editor_save_config)
+    # Runtime info page for ingress users. Scene editing now lives in OpenClaw Assistant.
+    app.router.add_get("/", runtime_page)
+    app.router.add_get("/editor/config", editor_moved)
+    app.router.add_post("/editor/config", editor_moved)
 
     # Health check — always allowed, no auth, no protection
     app.router.add_get("/health", lambda _: web.json_response({"status": "ok"}))

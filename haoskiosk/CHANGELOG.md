@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2-welizard.12 - March 2026
+
+- Remove scene-editor ownership from HAOS-kiosk:
+  - ingress root now explains that scene editing moved to OpenClaw Assistant
+  - legacy `/editor/config` endpoints return `410 Gone` with a migration hint
+  - browser/device runtime and REST automation stay in HAOS-kiosk.
+
 ## v1.3.2-welizard.11 - March 2026
 
 - Fix persistent ingress `502` when runtime options and ingress metadata drift:
