@@ -170,14 +170,14 @@ RUNTIME_INFO_HTML = """<!doctype html>
     </section>
     <section class="panel">
       <h2>Что изменилось</h2>
-      <p>Ingress scene editor и сохранение scene config вынесены в <strong>OpenClaw Assistant</strong>.</p>
+      <p>Scene host, scene editor и сохранение scene config вынесены в <strong>Kiosk Scene</strong>.</p>
       <p>HAOS-kiosk больше не владеет renderer/scene конфигом и остаётся только kiosk runtime слоем.</p>
     </section>
     <section class="panel">
       <h2>Куда идти дальше</h2>
-      <p>1. Открой add-on <code>OpenClaw Assistant</code> в Home Assistant.</p>
-      <p>2. Используй кнопку <code>Open Scene Editor</code>.</p>
-      <p>3. Там редактируется общий scene config для renderer bundle.</p>
+      <p>1. Открой add-on <code>Kiosk Scene</code> в Home Assistant.</p>
+      <p>2. Используй кнопки <code>Open Scene</code> и <code>Open Scene Editor</code>.</p>
+      <p>3. Там живут hosted runtime и канонический scene config для активного pack.</p>
     </section>
   </div>
 </body>
@@ -985,7 +985,7 @@ async def create_app() -> web.Application:
         return web.json_response(
             {
                 "success": False,
-                "error": "Scene editor moved to OpenClaw Assistant ingress (/scene-editor/).",
+                "error": "Scene host/editor moved to Kiosk Scene ingress (/scene/ and /scene-editor/).",
             },
             status=410,
         )
@@ -1019,7 +1019,7 @@ async def create_app() -> web.Application:
         else:
             app.router.add_post(route, make_handler)
 
-    # Runtime info page for ingress users. Scene editing now lives in OpenClaw Assistant.
+    # Runtime info page for ingress users. Scene hosting/editing now lives in Kiosk Scene.
     app.router.add_get("/", runtime_page)
     app.router.add_get("/editor/config", editor_moved)
     app.router.add_post("/editor/config", editor_moved)
