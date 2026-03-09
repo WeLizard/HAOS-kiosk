@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2-welizard.14 - March 2026
+
+- Fix black-screen Chromium crashes on real HDMI displays by removing the forced GPU/ANGLE path from defaults:
+  - stop forcing `--enable-gpu-rasterization`
+  - stop forcing `--ignore-gpu-blocklist`
+  - stop forcing `--use-gl=angle --use-angle=default`
+- Keep expert overrides available through environment variables when a specific GPU path is known to work.
+
 ## v1.3.2-welizard.12 - March 2026
 
 - Remove scene-editor ownership from HAOS-kiosk:

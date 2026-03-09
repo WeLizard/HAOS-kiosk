@@ -89,8 +89,10 @@ declare -a BROWSER_FLAGS=()
 BROWSER_PROCESS_MATCH=""
 CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
 CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
-CHROMIUM_GL_MODE="${CHROMIUM_GL_MODE:-angle}"
-CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-default}"
+CHROMIUM_GL_MODE="${CHROMIUM_GL_MODE:-}"
+CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-}"
+CHROMIUM_FORCE_GPU_RASTERIZATION="${CHROMIUM_FORCE_GPU_RASTERIZATION:-0}"
+CHROMIUM_IGNORE_GPU_BLOCKLIST="${CHROMIUM_IGNORE_GPU_BLOCKLIST:-0}"
 # If INGRESS_PORT is injected by Supervisor/runtime, it wins.
 # Otherwise we resolve it from add-on option INGRESS_RUNTIME_PORT (default 8099).
 INGRESS_PORT="${INGRESS_PORT:-}"
@@ -334,11 +336,19 @@ resolve_browser_binary() {
                 --kiosk
                 --ozone-platform=x11
                 --touch-events=enabled
-                --enable-gpu-rasterization
-                --ignore-gpu-blocklist
-                --use-gl="$CHROMIUM_GL_MODE"
-                --use-angle="$CHROMIUM_ANGLE_BACKEND"
             )
+            if [ "${CHROMIUM_FORCE_GPU_RASTERIZATION}" = "1" ]; then
+                BROWSER_FLAGS+=(--enable-gpu-rasterization)
+            fi
+            if [ "${CHROMIUM_IGNORE_GPU_BLOCKLIST}" = "1" ]; then
+                BROWSER_FLAGS+=(--ignore-gpu-blocklist)
+            fi
+            if [ -n "${CHROMIUM_GL_MODE}" ]; then
+                BROWSER_FLAGS+=(--use-gl="$CHROMIUM_GL_MODE")
+            fi
+            if [ -n "${CHROMIUM_ANGLE_BACKEND}" ]; then
+                BROWSER_FLAGS+=(--use-angle="$CHROMIUM_ANGLE_BACKEND")
+            fi
             BROWSER_PROCESS_MATCH='chromium'
             ;;
         luakit)
@@ -424,7 +434,7 @@ EOF
 resolve_browser_binary
 bashio::log.info "Using browser engine: $BROWSER_ENGINE [$BROWSER]"
 if [ "$BROWSER_ENGINE" = "chromium" ]; then
-    bashio::log.info "Chromium GL mode: use-gl=$CHROMIUM_GL_MODE use-angle=$CHROMIUM_ANGLE_BACKEND"
+    bashio::log.info "Chromium GL mode: use-gl=${CHROMIUM_GL_MODE:-auto} use-angle=${CHROMIUM_ANGLE_BACKEND:-auto} gpu-rasterization=${CHROMIUM_FORCE_GPU_RASTERIZATION} ignore-gpu-blocklist=${CHROMIUM_IGNORE_GPU_BLOCKLIST}"
 fi
 
 ################################################################################
