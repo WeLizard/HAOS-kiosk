@@ -202,10 +202,54 @@ compose_target_url() {
     printf '%s/%s' "${base_url%/}" "${dashboard_path#/}"
 }
 
+is_legacy_dashboard_target() {
+    local candidate="$1"
+    case "$candidate" in
+        http://localhost:8123/dashboard-display|\
+        http://localhost:8123/dashboard-display/|\
+        http://localhost:8123/dashboard-display/0|\
+        http://homeassistant.local:8123/dashboard-display|\
+        http://homeassistant.local:8123/dashboard-display/|\
+        http://homeassistant.local:8123/dashboard-display/0)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+probe_kiosk_scene_target() {
+    local bootstrap_url="http://localhost:48123/scene-api/bootstrap"
+    local fallback_target="http://localhost:48123/scene/"
+
+    if command -v curl >/dev/null 2>&1; then
+        if curl -fsS --max-time 3 "$bootstrap_url" >/dev/null 2>&1; then
+            printf '%s' "$fallback_target"
+            return 0
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if wget -q -T 3 -O /dev/null "$bootstrap_url" >/dev/null 2>&1; then
+            printf '%s' "$fallback_target"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
 HA_TARGET_URL="$(compose_target_url "$HA_URL" "$HA_DASHBOARD")"
 if [ -z "$HA_TARGET_URL" ]; then
     HA_TARGET_URL="about:blank"
 fi
+
+if is_legacy_dashboard_target "$HA_TARGET_URL"; then
+    if SCENE_TARGET_URL="$(probe_kiosk_scene_target)"; then
+        HA_TARGET_URL="$SCENE_TARGET_URL"
+        bashio::log.info "Migrating legacy dashboard target to Kiosk Scene runtime: $HA_TARGET_URL"
+    else
+        bashio::log.info "Legacy dashboard target retained because Kiosk Scene runtime probe failed"
+    fi
+fi
+
 export HA_TARGET_URL
 bashio::log.info "HA_TARGET_URL=$HA_TARGET_URL"
 

@@ -671,7 +671,7 @@ def handle_display_on(blank_timeout: int | None = None, timeout: int | None = No
     """Turn display on, optionally set blanking timeout. If 0, then disables timeout"""
 
     descr = _cmd_name
-    cmds = [ ["xset", "dpms", "force", "on"] ]
+    cmds = [["python3", "/browser_ctl.py", "wake_display"], ["xset", "dpms", "force", "on"]]
     if blank_timeout is not None:
         if blank_timeout == 0:
             cmds += [ ["xset", "s", "off"], ["xset", "-dpms"] ]
@@ -686,8 +686,9 @@ def handle_display_on(blank_timeout: int | None = None, timeout: int | None = No
 @register_function("display_off")
 def handle_display_off(timeout: int | None = None, *, _cmd_name: str = "unknown") -> None:
     """Force display off immediately."""
-    cmd = ["xset", "dpms", "force", "off"]
-    _run_subprocess(cmd, timeout=timeout, description=_cmd_name)
+    cmds = [["python3", "/browser_ctl.py", "sleep_display"], ["xset", "dpms", "force", "off"]]
+    for cmd in cmds:
+        _run_subprocess(cmd, timeout=timeout, description=_cmd_name)
 
 SCREENSHOT_DIR: str = "/media/screenshots"  # Directory to store screenshots
 @register_function("screenshot", optional=["filename", "quality", "delay"],
