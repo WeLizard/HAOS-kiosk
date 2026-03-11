@@ -107,7 +107,10 @@ INGRESS_COMPAT_PORT="${INGRESS_COMPAT_PORT:-}"
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
 load_config_var() {
-    # First, use existing variable if already set (for debugging purposes)
+    # First, use an exported environment variable if already set
+    # (for debugging purposes). Do not treat shell-local defaults declared
+    # earlier in this script as a real override, or HA config values like
+    # chromium_gl_mode will be ignored.
     # If not set, lookup configuration value
     # If null, use optional second parameter or else ""
     local VAR_NAME="$1"
@@ -115,9 +118,8 @@ load_config_var() {
     local MASK="${3:-}"
 
     local VALUE
-    #Check if $VAR_NAME exists before getting its value since 'set +x' mode
-    if declare -p "$VAR_NAME" >/dev/null 2>&1; then  #Variable exist, get its value
-        VALUE="${!VAR_NAME}"
+    if printenv "$VAR_NAME" >/dev/null 2>&1; then
+        VALUE="$(printenv "$VAR_NAME")"
     elif bashio::config.exists "${VAR_NAME,,}"; then
         VALUE="$(bashio::config "${VAR_NAME,,}")"
     else
