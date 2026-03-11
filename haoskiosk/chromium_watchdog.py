@@ -286,7 +286,7 @@ async def main() -> None:
                 continue
 
             if last_display_state is True and is_browser_sleeping():
-                resume_url = get_saved_browser_url(DEFAULT_LAUNCH_URL)
+                resume_url = get_saved_browser_url()
                 if url != resume_url:
                     await controller.navigate(resume_url)
                     logger.info("Display is on; restored browser URL: %s", resume_url)
