@@ -119,8 +119,12 @@ local server.
 
 ### HA Dashboard
 
-Name of starting dashboard.\
-(Default: "" - loads the default `Lovelace` dashboard)
+Configured display target for the kiosk browser. You can enter either:
+
+- a path relative to `HA URL`, for example `dashboard-display/0`
+- a full absolute URL, for example `http://localhost:48123/scene/`
+
+(Default: "" - loads the default page from `HA URL`)
 
 ### Login Delay
 
@@ -268,12 +272,10 @@ calls.
 
 ### Scene Editor Ownership
 
-HAOS-kiosk no longer owns the ingress scene editor or the renderer scene
-config file.
+HAOS-kiosk no longer owns the scene editor or the renderer scene config.
 
-Use the `OpenClaw Assistant` add-on and its `Open Scene Editor` entry point
-for renderer/scene configuration. HAOS-kiosk remains the browser/device
-runtime and REST automation layer.
+Use the `Kiosk Scene` add-on for scene runtime/editor configuration. `HAOS
+Kiosk Display` remains the browser/device runtime and REST automation layer.
 
 ### Gestures
 
@@ -336,8 +338,9 @@ ______________________________________________________________________
 
 ### launch_url {"url": "\<url>"}
 
-Launch the specified 'url' in the kiosk display. Overwrites current active
-tab. If no url supplied, use HA_URL/HA_DASHBOARD as default url.
+Launch the specified `url` in the kiosk display. Overwrites the current
+active tab. If no `url` is supplied, use the configured display target from
+`HA URL` + `HA Dashboard` (or the full target URL configured there).
 
 Usage:
 
@@ -852,8 +855,8 @@ Examples:
 - **kiosk.back**: Go back in browser history
 - **kiosk.forward**: Go forward in browser history
 - **kiosk.refresh_browser**: Reload current page
-- **kiosk.launch_url <url>**: Launch <url> in existing tab/window.\
-  If no <url> given, use HA_URL/HA_DASHBOARD as default
+- **kiosk.launch_url <url>**: Launch `<url>` in the existing tab/window.\
+  If no `<url>` is given, restore the configured display target
 - **kiosk.display_on <timeout>**: Turn on display with optional timeout
 - **kiosk.display_off**: Turn off display immediately
 - **kiosk.toggle_keyboard**: Toggle onscreen keyboard
@@ -912,11 +915,10 @@ clicking on the `X` next to them):
 "3_TOUCH_1_SWIPE_RIGHT": {"cmds": "kiosk.back", "msg": "Go back in the history browser"}
 ```
 
-- **2-Finger Triple Tap**: *Restore Default HA dashboard
-  (HA_URL/HA_Dashboard)*
+- **2-Finger Triple Tap**: *Restore the configured display target*
 
 ```
-"2_TOUCH_3_TAP": {"cmds": "kiosk.launch_url", "msg": "Restore default dashboard: HA_URL/HA_DASHBOARD"}
+"2_TOUCH_3_TAP": {"cmds": "kiosk.launch_url", "msg": "Restore configured display target"}
 ```
 
 - **2-Finger Quadruple Tap**: *Open Google search*
@@ -943,7 +945,7 @@ implemented the above as:
 
 "3_TOUCH_1_SWIPE_RIGHT": {"cmds": [["xdotool", "key", "--clearmodifiers", "ctrl+Left"]], "msg": "Go back in the history browser"}
 
-"2_TOUCH_3_TAP": {"cmds": "luakit \"$HA_URL/$HA_DASHBOARD\"", "msg": "Restore default dashboard"}
+"2_TOUCH_3_TAP": {"cmds": "luakit \"<configured-target-url>\"", "msg": "Restore configured display target"}
 
 "2_TOUCH_4_TAP": {"cmds": "luakit \"www.google.com\"", "msg": "Open Google search"}'
 ```

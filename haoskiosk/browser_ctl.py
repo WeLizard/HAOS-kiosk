@@ -12,7 +12,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import re
 import subprocess
 import sys
 import time
@@ -20,59 +19,17 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType  # type: ignore[import-not-found]
+from target_url import normalize_url, resolve_default_launch_url
 
 
 BROWSER_ENGINE = (os.getenv("BROWSER_ENGINE") or "chromium").strip().lower()
 CHROMIUM_DEVTOOLS_PORT = int(os.getenv("CHROMIUM_DEVTOOLS_PORT", "9222"))
 CHROMIUM_DEVTOOLS_HOST = os.getenv("CHROMIUM_DEVTOOLS_HOST", "127.0.0.1")
 CLIENT_TIMEOUT = ClientTimeout(total=5)
-
-VALID_URL_REGEX = re.compile(
-    r"^(https?://)?"
-    r"(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,63}\.?|"
-    r"localhost|"
-    r"\d{1,3}(?:\.\d{1,3}){3})"
-    r"(?::\d{1,5})?"
-    r"(?:/?|[/?][^\s]*)?$",
-    re.IGNORECASE,
-)
-
-def compose_target_url(ha_url: str | None, ha_dashboard: str | None) -> str:
-    """Compose the default launch URL from HA base URL and dashboard option."""
-    base_url = (ha_url or "about:blank").strip()
-    dashboard = (ha_dashboard or "").strip()
-    if dashboard.startswith(("http://", "https://")):
-        return dashboard
-    if not dashboard:
-        return base_url or "about:blank"
-    return f"{base_url.rstrip('/')}/{dashboard.lstrip('/')}"
-
-
-DEFAULT_LAUNCH_URL = (
-    os.getenv("HA_TARGET_URL")
-    or compose_target_url(os.getenv("HA_URL"), os.getenv("HA_DASHBOARD"))
-    or "about:blank"
-)
+DEFAULT_LAUNCH_URL = resolve_default_launch_url()
 BROWSER_STATE_DIR = os.getenv("BROWSER_STATE_DIR", "/run/haos-kiosk")
 BROWSER_STATE_FILE = os.path.join(BROWSER_STATE_DIR, "browser_state.json")
 DISPLAY_SLEEP_URL = (os.getenv("DISPLAY_SLEEP_URL") or "about:blank").strip() or "about:blank"
-
-
-def is_valid_url(url: str) -> bool:
-    """Validate URL format (allows http://, https://, bare domain/IP, path, query, fragment)."""
-    return bool(url == "about:blank" or VALID_URL_REGEX.fullmatch(url.strip()))
-
-
-def normalize_url(url: str | None) -> str:
-    """Return a browser-safe URL."""
-    candidate = (url or DEFAULT_LAUNCH_URL or "about:blank").strip()
-    if not candidate:
-        candidate = DEFAULT_LAUNCH_URL or "about:blank"
-    if candidate != "about:blank" and not candidate.startswith(("http://", "https://")):
-        candidate = "http://" + candidate
-    if not is_valid_url(candidate):
-        raise ValueError(f"Invalid URL format: {candidate}")
-    return candidate
 
 
 def get_sleep_url() -> str:
@@ -382,7 +339,7 @@ class ChromiumController:
 async def run_browser_action(action: str, url: str | None = None) -> dict[str, Any]:
     """Dispatch browser control action based on configured engine."""
     if BROWSER_ENGINE == "luakit":
-        normalized = normalize_url(url) if action == "launch_url" else None
+        normalized = normalize_url(url, DEFAULT_LAUNCH_URL) if action == "launch_url" else None
         if action == "launch_url":
             _run_luakit_command(["luakit", "-n", normalized or DEFAULT_LAUNCH_URL])
         elif action == "refresh_browser":

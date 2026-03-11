@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.2-welizard.17 - March 2026
+
+- Remove startup hardcoding of the display target:
+  - `HAOS Kiosk Display` now resolves the browser target strictly from its own settings
+  - remove automatic rewrite from legacy `dashboard-display` URLs to `Kiosk Scene`
+- Add shared target URL helper used by `run.sh`, REST, gesture commands, and browser control:
+  - support relative dashboard paths and full absolute URLs from the same setting
+  - keep runtime/browser helpers consistent when restoring the configured display target.
+
 ## v1.3.2-welizard.14 - March 2026
 
 - Fix black-screen Chromium crashes on real HDMI displays by removing the forced GPU/ANGLE path from defaults:

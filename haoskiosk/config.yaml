@@ -3,7 +3,7 @@ name: "HAOS Kiosk Display (Welizard Chromium Fork)"
 description: |
   Chromium/WebGL-focused Welizard fork of the original HAOS Kiosk Display by
   Jeff Kosowsky for local HAOS dashboard screens and touch displays.
-version: "1.3.2-welizard.16"
+version: "1.3.2-welizard.17"
 slug: "haoskiosk"
 
 arch:
@@ -106,7 +106,7 @@ options:
     - '"3_TOUCH_4_TAP": {"cmds": "kiosk.screenshot", "msg": "Save screenshot"}'
     - '"3+_TOUCH_1_SWIPE_LEFT": {"cmds": "kiosk.forward", "msg": "Go forward in the history browser"}'
     - '"3+_TOUCH_1_SWIPE_RIGHT": {"cmds": "kiosk.back", "msg": "Go back in the history browser"}'
-    - '"2_TOUCH_3_TAP": {"cmds": "kiosk.launch_url", "msg": "Restore default dashboard: HA_URL/HA_DASHBOARD"}'
+    - '"2_TOUCH_3_TAP": {"cmds": "kiosk.launch_url", "msg": "Restore configured display target"}'
     - '"2_TOUCH_4_TAP": {"cmds": [["kiosk.launch_url", "www.google.com"]], "msg": "Open Google search"}'
   command_whitelist: "cat|chromium|chromium-browser|date|dbus-send|echo|false|grep|head|ls|luakit|notify-send|ping|ping6|ps|pstree|sleep|tail|test|top|tree|true|xdotool|xset"
   touch_debug_level: 1

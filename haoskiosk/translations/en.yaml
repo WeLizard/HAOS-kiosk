@@ -13,8 +13,11 @@ configuration:
       Note: Typically should not need to be changed since browser runs on the
       'localhost' server
   ha_dashboard:
-    name: "HA Dashboard"
-    description: 'Dashboard path (following "HA URL") [Default: ""]'
+    name: "HA Dashboard / Target URL"
+    description: |
+      Path relative to "HA URL" or a full absolute URL for the display target.
+      Examples: `dashboard-display/0` or `http://localhost:48123/scene/`
+      [Default: ""]
   login_delay:
     name: "Login Delay"
     description: |

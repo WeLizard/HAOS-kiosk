@@ -85,7 +85,7 @@ COPY run.sh /
 RUN chmod a+x /run.sh
 
 COPY mouse_touch_inputs.py gesture_commands.json /
-COPY rest_server.py /
+COPY rest_server.py target_url.py /
 COPY browser_ctl.py chromium_watchdog.py /
 RUN pip install --no-cache-dir  --break-system-packages aiohttp #Required for rest_server.py
 

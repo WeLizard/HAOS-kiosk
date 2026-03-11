@@ -54,7 +54,7 @@
 #     - Set audio sink
 #     - Start Xinput parsing...
 #     - Start REST API server
-#     - Launch browser for url: $HA_URL/$HA_DASHBOARD
+#     - Launch browser for the configured display target
 #       [If not in DEBUG_MODE; Otherwise, just sleep]
 #
 ################################################################################
@@ -176,78 +176,12 @@ is_valid_port() {
     [ "$maybe_port" -ge 1024 ] && [ "$maybe_port" -le 65535 ]
 }
 
-compose_target_url() {
-    local base_url="$1"
-    local dashboard_path="$2"
-
-    # Trim simple surrounding whitespace.
-    base_url="$(echo "$base_url" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-    dashboard_path="$(echo "$dashboard_path" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-
-    # Allow absolute dashboard URLs directly from config.
-    if [[ "$dashboard_path" =~ ^https?:// ]]; then
-        printf '%s' "$dashboard_path"
-        return
-    fi
-
-    if [ -z "$base_url" ]; then
-        base_url="about:blank"
-    fi
-
-    if [ -z "$dashboard_path" ]; then
-        printf '%s' "$base_url"
-        return
-    fi
-
-    printf '%s/%s' "${base_url%/}" "${dashboard_path#/}"
-}
-
-is_legacy_dashboard_target() {
-    local candidate="$1"
-    case "$candidate" in
-        http://localhost:8123/dashboard-display|\
-        http://localhost:8123/dashboard-display/|\
-        http://localhost:8123/dashboard-display/0|\
-        http://homeassistant.local:8123/dashboard-display|\
-        http://homeassistant.local:8123/dashboard-display/|\
-        http://homeassistant.local:8123/dashboard-display/0)
-            return 0
-            ;;
-    esac
-    return 1
-}
-
-probe_kiosk_scene_target() {
-    local bootstrap_url="http://localhost:48123/scene-api/bootstrap"
-    local fallback_target="http://localhost:48123/scene/"
-
-    if command -v curl >/dev/null 2>&1; then
-        if curl -fsS --max-time 3 "$bootstrap_url" >/dev/null 2>&1; then
-            printf '%s' "$fallback_target"
-            return 0
-        fi
-    elif command -v wget >/dev/null 2>&1; then
-        if wget -q -T 3 -O /dev/null "$bootstrap_url" >/dev/null 2>&1; then
-            printf '%s' "$fallback_target"
-            return 0
-        fi
-    fi
-
-    return 1
-}
-
-HA_TARGET_URL="$(compose_target_url "$HA_URL" "$HA_DASHBOARD")"
-if [ -z "$HA_TARGET_URL" ]; then
+TARGET_URL_RESULT=""
+if ! TARGET_URL_RESULT="$(python3 /target_url.py default 2>&1)"; then
+    bashio::log.warning "Failed to resolve HA_TARGET_URL from current settings ($TARGET_URL_RESULT); falling back to about:blank"
     HA_TARGET_URL="about:blank"
-fi
-
-if is_legacy_dashboard_target "$HA_TARGET_URL"; then
-    if SCENE_TARGET_URL="$(probe_kiosk_scene_target)"; then
-        HA_TARGET_URL="$SCENE_TARGET_URL"
-        bashio::log.info "Migrating legacy dashboard target to Kiosk Scene runtime: $HA_TARGET_URL"
-    else
-        bashio::log.info "Legacy dashboard target retained because Kiosk Scene runtime probe failed"
-    fi
+else
+    HA_TARGET_URL="$TARGET_URL_RESULT"
 fi
 
 export HA_TARGET_URL
