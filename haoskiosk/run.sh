@@ -216,7 +216,14 @@ resolve_chromium_gl_flags() {
                     break
                 done
                 bashio::log.info "Auto GPU: renderD128=present driver=${gpu_driver:-unknown}"
-                CHROMIUM_USE_GL_FLAG="egl"
+                # This Chromium build only supports ANGLE (egl-angle), not
+                # native EGL.  Use ANGLE with default backend but keep the
+                # compositor in software to avoid texStorage2D crashes that
+                # kill the GPU process.  WebGL still works through ANGLE.
+                CHROMIUM_USE_GL_FLAG="angle"
+                if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
+                    CHROMIUM_USE_ANGLE_FLAG="default"
+                fi
                 CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
                 CHROMIUM_FORCE_GPU_RASTERIZATION=1
                 CHROMIUM_DISABLE_GPU_COMPOSITING=1
