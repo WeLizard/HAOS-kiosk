@@ -45,8 +45,9 @@ configuration:
     name: "Chromium GL Mode"
     description: |
       Select the Chromium OpenGL backend. Keep `Auto` for the default path.
-      Use `SwiftShader` if the display shows a white or black frame with
-      WebGL-heavy pages such as `Kiosk Scene`. [Default: Auto]
+      Use `SwiftShader` to force Chromium's supported software WebGL fallback
+      for trusted local pages such as `Kiosk Scene` when hardware GL leaves
+      the avatar blank or the screen black. [Default: Auto]
     items:
       auto: "Auto"
       swiftshader: "SwiftShader (software)"

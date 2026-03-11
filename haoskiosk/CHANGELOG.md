@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2-welizard.19 - March 2026
+
+- Fix the `SwiftShader` browser mode so it uses Chromium's supported software
+  WebGL fallback instead of the phased-out legacy `--use-gl=swiftshader` path:
+  - map the add-on's `swiftshader` setting to `--use-gl=angle --use-angle=swiftshader-webgl`
+  - opt in with `--enable-unsafe-swiftshader` for trusted local pages such as `Kiosk Scene`
+  - keep the user-facing HA setting unchanged while making the mode honest and installable.
+
 ## v1.3.2-welizard.18 - March 2026
 
 - Add an explicit Chromium GL backend setting to the add-on configuration:

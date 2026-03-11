@@ -93,6 +93,9 @@ CHROMIUM_GL_MODE="${CHROMIUM_GL_MODE:-}"
 CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-}"
 CHROMIUM_FORCE_GPU_RASTERIZATION="${CHROMIUM_FORCE_GPU_RASTERIZATION:-0}"
 CHROMIUM_IGNORE_GPU_BLOCKLIST="${CHROMIUM_IGNORE_GPU_BLOCKLIST:-0}"
+CHROMIUM_USE_GL_FLAG=""
+CHROMIUM_USE_ANGLE_FLAG=""
+CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=0
 # If INGRESS_PORT is injected by Supervisor/runtime, it wins.
 # Otherwise we resolve it from add-on option INGRESS_RUNTIME_PORT (default 8099).
 INGRESS_PORT="${INGRESS_PORT:-}"
@@ -189,6 +192,36 @@ normalize_chromium_gl_mode() {
 }
 
 normalize_chromium_gl_mode
+
+resolve_chromium_gl_flags() {
+    CHROMIUM_USE_GL_FLAG=""
+    CHROMIUM_USE_ANGLE_FLAG="${CHROMIUM_ANGLE_BACKEND:-}"
+    CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=0
+
+    case "$CHROMIUM_GL_MODE" in
+        "")
+            ;;
+        swiftshader)
+            # Chromium phased out the legacy `--use-gl=swiftshader` path.
+            # Use the supported ANGLE SwiftShader WebGL fallback for trusted
+            # local content such as Kiosk Scene.
+            CHROMIUM_USE_GL_FLAG="angle"
+            if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
+                CHROMIUM_USE_ANGLE_FLAG="swiftshader-webgl"
+            fi
+            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=1
+            ;;
+        desktop|egl|angle)
+            CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"
+            ;;
+    esac
+
+    export CHROMIUM_USE_GL_FLAG
+    export CHROMIUM_USE_ANGLE_FLAG
+    export CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER
+}
+
+resolve_chromium_gl_flags
 
 is_valid_port() {
     local maybe_port="$1"
@@ -341,11 +374,14 @@ resolve_browser_binary() {
             if [ "${CHROMIUM_IGNORE_GPU_BLOCKLIST}" = "1" ]; then
                 BROWSER_FLAGS+=(--ignore-gpu-blocklist)
             fi
-            if [ -n "${CHROMIUM_GL_MODE}" ]; then
-                BROWSER_FLAGS+=(--use-gl="$CHROMIUM_GL_MODE")
+            if [ -n "${CHROMIUM_USE_GL_FLAG}" ]; then
+                BROWSER_FLAGS+=(--use-gl="$CHROMIUM_USE_GL_FLAG")
             fi
-            if [ -n "${CHROMIUM_ANGLE_BACKEND}" ]; then
-                BROWSER_FLAGS+=(--use-angle="$CHROMIUM_ANGLE_BACKEND")
+            if [ -n "${CHROMIUM_USE_ANGLE_FLAG}" ]; then
+                BROWSER_FLAGS+=(--use-angle="$CHROMIUM_USE_ANGLE_FLAG")
+            fi
+            if [ "${CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER}" = "1" ]; then
+                BROWSER_FLAGS+=(--enable-unsafe-swiftshader)
             fi
             BROWSER_PROCESS_MATCH='chromium'
             ;;
@@ -432,7 +468,7 @@ EOF
 resolve_browser_binary
 bashio::log.info "Using browser engine: $BROWSER_ENGINE [$BROWSER]"
 if [ "$BROWSER_ENGINE" = "chromium" ]; then
-    bashio::log.info "Chromium GL mode: use-gl=${CHROMIUM_GL_MODE:-auto} use-angle=${CHROMIUM_ANGLE_BACKEND:-auto} gpu-rasterization=${CHROMIUM_FORCE_GPU_RASTERIZATION} ignore-gpu-blocklist=${CHROMIUM_IGNORE_GPU_BLOCKLIST}"
+    bashio::log.info "Chromium GL mode: mode=${CHROMIUM_GL_MODE:-auto} use-gl=${CHROMIUM_USE_GL_FLAG:-auto} use-angle=${CHROMIUM_USE_ANGLE_FLAG:-auto} unsafe-swiftshader=${CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER} gpu-rasterization=${CHROMIUM_FORCE_GPU_RASTERIZATION} ignore-gpu-blocklist=${CHROMIUM_IGNORE_GPU_BLOCKLIST}"
 fi
 
 ################################################################################
