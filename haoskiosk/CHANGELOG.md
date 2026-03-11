@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.2-welizard.23 - March 2026
+
+- Add explicit ANGLE backend choices to the add-on UI so HDMI troubleshooting
+  stays in `HAOS Kiosk Display` settings instead of ad-hoc command-line edits:
+  - add `gl` and `vulkan` to `chromium_gl_mode`
+  - map them to `--use-gl=angle --use-angle=<backend>`
+  - keep the existing `auto`, `swiftshader`, `desktop`, `egl`, and `angle`
+    behavior unchanged
+
 ## v1.3.2-welizard.22 - March 2026
 
 - Let the explicit `angle` browser mode opt into WebGL instead of being

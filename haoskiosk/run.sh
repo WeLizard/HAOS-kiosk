@@ -180,7 +180,7 @@ normalize_chromium_gl_mode() {
         ""|auto)
             CHROMIUM_GL_MODE=""
             ;;
-        swiftshader|desktop|egl|angle)
+        swiftshader|desktop|egl|angle|gl|vulkan)
             CHROMIUM_GL_MODE="$raw_mode"
             ;;
         *)
@@ -217,6 +217,10 @@ resolve_chromium_gl_flags() {
         angle)
             CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"
             CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
+            ;;
+        gl|vulkan)
+            CHROMIUM_USE_GL_FLAG="angle"
+            CHROMIUM_USE_ANGLE_FLAG="$CHROMIUM_GL_MODE"
             ;;
         desktop|egl)
             CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"

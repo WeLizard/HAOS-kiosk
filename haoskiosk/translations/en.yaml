@@ -47,13 +47,18 @@ configuration:
       Select the Chromium OpenGL backend. Keep `Auto` for the default path.
       Use `SwiftShader` to force Chromium's supported software WebGL fallback
       for trusted local pages such as `Kiosk Scene` when hardware GL leaves
-      the avatar blank or the screen black. [Default: Auto]
+      the avatar blank or the screen black. Use `GL` or `Vulkan` to force
+      Chromium's ANGLE backend to a specific renderer when the generic
+      `ANGLE` mode still cannot create a WebGL context on the HDMI device.
+      [Default: Auto]
     items:
       auto: "Auto"
       swiftshader: "SwiftShader (software)"
       desktop: "Desktop GL"
       egl: "EGL"
       angle: "ANGLE"
+      gl: "ANGLE GL"
+      vulkan: "ANGLE Vulkan"
   screen_timeout:
     name: "Screen Timeout"
     description: "Time in seconds until screen blanks; 0 for never [Default: 0]"

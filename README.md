@@ -27,8 +27,9 @@ displays.
   - Supports touchscreens gestures, screen rotation, and onscreen keyboard
   - Includes REST API that can be used to control the display state and to
     send new URLs (e.g., dashboards) to the kiosk browser.
-  - Exposes a configurable Chromium GL backend in add-on settings for boxes
-    that need software rendering (`SwiftShader`) instead of the default GPU path.
+  - Exposes configurable Chromium GL backends in add-on settings so the
+    display target stays user-configured while problematic HDMI boxes can try
+    `SwiftShader`, explicit ANGLE `GL`, or ANGLE `Vulkan` without shell hacks.
 
 You can press `ctl-R` at any time to refresh ( reload) the browser. \
 Alternatively, you can right click (or long press touchscreen) to access
