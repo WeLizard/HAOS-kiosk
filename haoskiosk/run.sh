@@ -198,6 +198,7 @@ resolve_chromium_gl_flags() {
     CHROMIUM_USE_ANGLE_FLAG="${CHROMIUM_ANGLE_BACKEND:-}"
     CHROMIUM_DISABLE_GPU_COMPOSITING=0
     CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=0
+    CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST="${CHROMIUM_IGNORE_GPU_BLOCKLIST}"
 
     case "$CHROMIUM_GL_MODE" in
         "")
@@ -213,7 +214,11 @@ resolve_chromium_gl_flags() {
             fi
             CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=1
             ;;
-        desktop|egl|angle)
+        angle)
+            CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"
+            CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
+            ;;
+        desktop|egl)
             CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"
             ;;
     esac
@@ -222,6 +227,7 @@ resolve_chromium_gl_flags() {
     export CHROMIUM_USE_ANGLE_FLAG
     export CHROMIUM_DISABLE_GPU_COMPOSITING
     export CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER
+    export CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST
 }
 
 resolve_chromium_gl_flags
@@ -374,7 +380,7 @@ resolve_browser_binary() {
             if [ "${CHROMIUM_FORCE_GPU_RASTERIZATION}" = "1" ]; then
                 BROWSER_FLAGS+=(--enable-gpu-rasterization)
             fi
-            if [ "${CHROMIUM_IGNORE_GPU_BLOCKLIST}" = "1" ]; then
+            if [ "${CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST}" = "1" ]; then
                 BROWSER_FLAGS+=(--ignore-gpu-blocklist)
             fi
             if [ -n "${CHROMIUM_USE_GL_FLAG}" ]; then
@@ -474,7 +480,7 @@ EOF
 resolve_browser_binary
 bashio::log.info "Using browser engine: $BROWSER_ENGINE [$BROWSER]"
 if [ "$BROWSER_ENGINE" = "chromium" ]; then
-    bashio::log.info "Chromium GL mode: mode=${CHROMIUM_GL_MODE:-auto} use-gl=${CHROMIUM_USE_GL_FLAG:-auto} use-angle=${CHROMIUM_USE_ANGLE_FLAG:-auto} unsafe-swiftshader=${CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER} disable-gpu-compositing=${CHROMIUM_DISABLE_GPU_COMPOSITING} gpu-rasterization=${CHROMIUM_FORCE_GPU_RASTERIZATION} ignore-gpu-blocklist=${CHROMIUM_IGNORE_GPU_BLOCKLIST}"
+    bashio::log.info "Chromium GL mode: mode=${CHROMIUM_GL_MODE:-auto} use-gl=${CHROMIUM_USE_GL_FLAG:-auto} use-angle=${CHROMIUM_USE_ANGLE_FLAG:-auto} unsafe-swiftshader=${CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER} disable-gpu-compositing=${CHROMIUM_DISABLE_GPU_COMPOSITING} gpu-rasterization=${CHROMIUM_FORCE_GPU_RASTERIZATION} ignore-gpu-blocklist=${CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST}"
 fi
 
 ################################################################################

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2-welizard.22 - March 2026
+
+- Let the explicit `angle` browser mode opt into WebGL instead of being
+  blocked before `Kiosk Scene` can even create a context:
+  - keep `angle` on the normal visible page path
+  - add `--ignore-gpu-blocklist` automatically for that mode
+  - leave other modes unchanged so the advanced GL selector still means what it says.
+
 ## v1.3.2-welizard.21 - March 2026
 
 - Rebuild the `SwiftShader` browser mode around Chromium's supported software
