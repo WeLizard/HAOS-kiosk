@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.2-welizard.12
+# Version: 1.3.2-welizard.24
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -202,21 +202,57 @@ resolve_chromium_gl_flags() {
 
     case "$CHROMIUM_GL_MODE" in
         "")
+            # Auto mode: detect GPU hardware and configure accordingly.
+            if [ -e /dev/dri/renderD128 ]; then
+                # Real GPU render node available.  Use ANGLE with the default
+                # backend (translates GLES to native GL via Mesa).  This is
+                # the proven working configuration for Intel/AMD iGPUs inside
+                # HA add-on containers.
+                local gpu_driver=""
+                for drv_path in /sys/class/drm/card[0-9]*/device/driver; do
+                    [ -e "$drv_path" ] || continue
+                    gpu_driver=$(basename "$(readlink "$drv_path")")
+                    break
+                done
+                bashio::log.info "Auto GPU: renderD128=present driver=${gpu_driver:-unknown}"
+                CHROMIUM_USE_GL_FLAG="angle"
+                if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
+                    CHROMIUM_USE_ANGLE_FLAG="default"
+                fi
+                CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
+                CHROMIUM_FORCE_GPU_RASTERIZATION=1
+            else
+                # No GPU render node — fall back to SwiftShader (software WebGL).
+                bashio::log.info "Auto GPU: no render node, using SwiftShader"
+                CHROMIUM_USE_GL_FLAG="angle"
+                if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
+                    CHROMIUM_USE_ANGLE_FLAG="swiftshader-webgl"
+                fi
+                CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=1
+                CHROMIUM_DISABLE_GPU_COMPOSITING=1
+            fi
             ;;
         swiftshader)
-            # Use Chromium's supported software WebGL fallback path rather than
-            # the removed legacy `--use-gl=swiftshader` flag. This keeps the
-            # rest of the page on the normal compositor path while allowing
-            # trusted local WebGL content like Kiosk Scene avatars to render.
+            # Full software rendering path: SwiftShader provides WebGL via
+            # ANGLE while the page compositor runs in software mode.
+            # Without --disable-gpu-compositing the GPU process still tries
+            # hardware compositing, crashes on devices without a working GPU
+            # driver, and takes the whole page with it (black screen).
             CHROMIUM_USE_GL_FLAG="angle"
             if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
                 CHROMIUM_USE_ANGLE_FLAG="swiftshader-webgl"
             fi
             CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=1
+            CHROMIUM_DISABLE_GPU_COMPOSITING=1
             ;;
         angle)
             CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"
             CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
+            # ANGLE needs an explicit backend; default translates GLES to
+            # native GL and works on Intel/AMD Mesa drivers.
+            if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
+                CHROMIUM_USE_ANGLE_FLAG="default"
+            fi
             ;;
         gl|vulkan)
             CHROMIUM_USE_GL_FLAG="angle"
@@ -224,6 +260,9 @@ resolve_chromium_gl_flags() {
             ;;
         desktop|egl)
             CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"
+            # Direct EGL/desktop GL still needs blocklist bypass for many
+            # Intel/AMD iGPUs that Chromium blocks by default.
+            CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
             ;;
     esac
 
