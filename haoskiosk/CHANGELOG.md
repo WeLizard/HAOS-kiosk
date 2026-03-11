@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2-welizard.21 - March 2026
+
+- Rebuild the `SwiftShader` browser mode around Chromium's supported software
+  WebGL fallback path instead of the earlier compositor workaround:
+  - map `swiftshader` to `--use-gl=angle --use-angle=swiftshader-webgl`
+  - add `--enable-unsafe-swiftshader` so trusted local WebGL content can still render
+  - stop forcing `--disable-gpu-compositing` in this mode so the kiosk page stays on the normal compositor path.
+
 ## v1.3.2-welizard.20 - March 2026
 
 - Fix the `SwiftShader` browser mode so it uses Chromium's supported SwANGLE
