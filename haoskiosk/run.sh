@@ -204,10 +204,11 @@ resolve_chromium_gl_flags() {
         "")
             # Auto mode: detect GPU hardware and configure accordingly.
             if [ -e /dev/dri/renderD128 ]; then
-                # Real GPU render node available.  Use ANGLE with the default
-                # backend (translates GLES to native GL via Mesa).  This is
-                # the proven working configuration for Intel/AMD iGPUs inside
-                # HA add-on containers.
+                # Real GPU render node available.  Use EGL directly through
+                # Mesa (bypasses ANGLE translation layer).  Compositor stays
+                # in software to avoid SharedImage/texStorage2D crashes that
+                # kill the GPU process on Intel iGPUs in containers.  The GPU
+                # process stays alive for WebGL contexts.
                 local gpu_driver=""
                 for drv_path in /sys/class/drm/card[0-9]*/device/driver; do
                     [ -e "$drv_path" ] || continue
@@ -215,12 +216,10 @@ resolve_chromium_gl_flags() {
                     break
                 done
                 bashio::log.info "Auto GPU: renderD128=present driver=${gpu_driver:-unknown}"
-                CHROMIUM_USE_GL_FLAG="angle"
-                if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
-                    CHROMIUM_USE_ANGLE_FLAG="default"
-                fi
+                CHROMIUM_USE_GL_FLAG="egl"
                 CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
                 CHROMIUM_FORCE_GPU_RASTERIZATION=1
+                CHROMIUM_DISABLE_GPU_COMPOSITING=1
             else
                 # No GPU render node — fall back to SwiftShader (software WebGL).
                 bashio::log.info "Auto GPU: no render node, using SwiftShader"
