@@ -658,7 +658,7 @@ def handle_display_on(blank_timeout: int | None = None, timeout: int | None = No
     """Turn display on, optionally set blanking timeout. If 0, then disables timeout"""
 
     descr = _cmd_name
-    cmds = [["python3", "/browser_ctl.py", "wake_display"], ["xset", "dpms", "force", "on"]]
+    cmds = [["xset", "dpms", "force", "on"]]
     if blank_timeout is not None:
         if blank_timeout == 0:
             cmds += [ ["xset", "s", "off"], ["xset", "-dpms"] ]
@@ -667,6 +667,7 @@ def handle_display_on(blank_timeout: int | None = None, timeout: int | None = No
             t = str(blank_timeout)
             cmds += [ ["xset", "s", t], ["xset", "dpms", t, t, t] ]
             descr += f": blanking set to {blank_timeout} seconds"
+    cmds.append(["python3", "/browser_ctl.py", "wake_display"])
     for cmd in cmds:
         _run_subprocess(cmd, shell=False, timeout=timeout, description=descr)
 

@@ -24,7 +24,6 @@ from browser_ctl import (
     get_sleep_url,
     is_browser_sleeping,
     remember_active_url,
-    update_browser_state,
 )
 
 
@@ -267,33 +266,25 @@ async def main() -> None:
                 last_url = url
 
             if last_display_state is False:
-                if url and url not in {"about:blank", sleep_url}:
-                    remember_active_url(url)
-                    last_saved_url = url
-                    await controller.navigate(sleep_url)
-                    update_browser_state(current_url=sleep_url, display_sleeping=True)
-                    last_url = sleep_url
+                if not is_browser_sleeping():
+                    result = await controller.sleep()
+                    saved_url = str(result.get("saved_url") or get_saved_browser_url())
+                    if saved_url:
+                        last_saved_url = saved_url
                     last_reload_at = time.monotonic()
                     last_auth_url = ""
                     last_settings_url = ""
-                    logger.info("Display is off; suspended browser on sleep URL")
-                elif not is_browser_sleeping():
-                    update_browser_state(
-                        current_url=url or sleep_url,
-                        display_sleeping=True,
-                    )
+                    logger.info("Display is off; paused scene runtime on current page")
                 await asyncio.sleep(POLL_INTERVAL)
                 continue
 
             if last_display_state is True and is_browser_sleeping():
-                resume_url = get_saved_browser_url()
-                if url != resume_url:
-                    await controller.navigate(resume_url)
-                    logger.info("Display is on; restored browser URL: %s", resume_url)
+                result = await controller.wake()
+                resume_url = str(result.get("url") or get_saved_browser_url())
+                if resume_url:
+                    last_saved_url = resume_url
                     last_url = resume_url
-                remember_active_url(resume_url)
-                last_saved_url = resume_url
-                update_browser_state(display_sleeping=False)
+                logger.info("Display is on; resumed scene runtime%s", f": {resume_url}" if resume_url else "")
                 last_reload_at = time.monotonic()
                 last_auth_url = ""
                 last_settings_url = ""

@@ -562,14 +562,7 @@ async def handle_display_on(data: Payload) -> dict[str, Any]:
     """Turn display on, optionally set blanking timeout. If 0, then disables timeout"""
     blank_timeout = data.get("timeout")
 
-    results = [
-        await execute_command(
-            ["python3", "/browser_ctl.py", "wake_display"],
-            timeout=SHORT_TIMEOUT,
-            log_prefix="display_on_browser",
-            allow_command=True,
-        )
-    ]
+    results = []
 
     cmds = [["xset", "dpms", "force", "on"]]
     log_msg = ""
@@ -592,6 +585,14 @@ async def handle_display_on(data: Payload) -> dict[str, Any]:
                 allow_command=True,
             )
         )
+    results.append(
+        await execute_command(
+            ["python3", "/browser_ctl.py", "wake_display"],
+            timeout=SHORT_TIMEOUT,
+            log_prefix="display_on_browser",
+            allow_command=True,
+        )
+    )
     logging.info("[display_on]%s", log_msg)
     return {"success": all(r["success"] for r in results), "results": results}
 

@@ -30,6 +30,8 @@ DEFAULT_LAUNCH_URL = resolve_default_launch_url()
 BROWSER_STATE_DIR = os.getenv("BROWSER_STATE_DIR", "/run/haos-kiosk")
 BROWSER_STATE_FILE = os.path.join(BROWSER_STATE_DIR, "browser_state.json")
 DISPLAY_SLEEP_URL = (os.getenv("DISPLAY_SLEEP_URL") or "about:blank").strip() or "about:blank"
+DISPLAY_POWER_OFF_EVENT = "kiosk-display-off"
+DISPLAY_POWER_ON_EVENT = "kiosk-display-on"
 
 
 def get_sleep_url() -> str:
@@ -270,45 +272,51 @@ class ChromiumController:
 
         return await self._with_page(worker)
 
+    async def broadcast_display_power(self, display_on: bool) -> dict[str, Any]:
+        """Broadcast display power state to the active page."""
+        payload = {
+            "type": DISPLAY_POWER_ON_EVENT if display_on else DISPLAY_POWER_OFF_EVENT,
+            "displayOn": bool(display_on),
+            "source": "haos-kiosk",
+            "timestamp": int(time.time() * 1000),
+        }
+        expression = f"""
+(() => {{
+  const payload = {json.dumps(payload, ensure_ascii=False)};
+  window.postMessage(payload, "*");
+  return payload;
+}})()
+""".strip()
+        return await self.evaluate(expression, return_by_value=True)
+
     async def sleep(self, *, sleep_url: str | None = None) -> dict[str, Any]:
-        """Navigate Chromium to a cheap sleep URL and persist the wake target."""
-        normalized_sleep_url = normalize_url(sleep_url or get_sleep_url())
+        """Pause the active page and persist the wake target without navigating away."""
         target = await self.get_page_target()
         current_url = str(target.get("url") or "")
         state = load_browser_state()
 
         saved_url = state.get("saved_url")
-        if current_url and current_url not in {"about:blank", normalized_sleep_url}:
+        if current_url and current_url not in {"about:blank", normalize_url(sleep_url or get_sleep_url())}:
             saved_url = normalize_url(current_url)
         if not isinstance(saved_url, str) or not saved_url.strip():
             saved_url = normalize_url(DEFAULT_LAUNCH_URL)
 
         update_browser_state(
-            current_url=normalized_sleep_url,
+            current_url=normalize_url(current_url or saved_url),
             saved_url=saved_url,
             display_sleeping=True,
         )
-
-        if current_url == normalized_sleep_url:
-            return {
-                "success": True,
-                "sleeping": True,
-                "already_sleeping": True,
-                "saved_url": saved_url,
-                "sleep_url": normalized_sleep_url,
-            }
-
-        result = await self.navigate(normalized_sleep_url)
+        result = await self.broadcast_display_power(False)
         return {
             "success": True,
             "sleeping": True,
             "saved_url": saved_url,
-            "sleep_url": normalized_sleep_url,
+            "current_url": normalize_url(current_url or saved_url),
             "result": result,
         }
 
     async def wake(self, *, target_url: str | None = None) -> dict[str, Any]:
-        """Restore Chromium from the sleep URL back to the last active URL."""
+        """Resume the current page or navigate to a deferred wake target."""
         normalized_target_url = normalize_url(target_url or get_saved_browser_url(DEFAULT_LAUNCH_URL))
         target = await self.get_page_target()
         current_url = str(target.get("url") or "")
@@ -320,11 +328,12 @@ class ChromiumController:
         )
 
         if current_url == normalized_target_url:
+            result = await self.broadcast_display_power(True)
             return {
                 "success": True,
                 "sleeping": False,
-                "already_awake": True,
                 "url": normalized_target_url,
+                "result": result,
             }
 
         result = await self.navigate(normalized_target_url)
