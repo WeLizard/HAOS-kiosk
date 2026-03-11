@@ -41,6 +41,18 @@ configuration:
     items:
       chromium: "Chromium"
       luakit: "Luakit"
+  chromium_gl_mode:
+    name: "Chromium GL Mode"
+    description: |
+      Select the Chromium OpenGL backend. Keep `Auto` for the default path.
+      Use `SwiftShader` if the display shows a white or black frame with
+      WebGL-heavy pages such as `Kiosk Scene`. [Default: Auto]
+    items:
+      auto: "Auto"
+      swiftshader: "SwiftShader (software)"
+      desktop: "Desktop GL"
+      egl: "EGL"
+      angle: "ANGLE"
   screen_timeout:
     name: "Screen Timeout"
     description: "Time in seconds until screen blanks; 0 for never [Default: 0]"

@@ -145,6 +145,7 @@ load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
 load_config_var BROWSER_REFRESH 600
 load_config_var BROWSER_ENGINE "chromium"
+load_config_var CHROMIUM_GL_MODE auto
 load_config_var SCREEN_TIMEOUT 600  # Default to 600 seconds
 load_config_var OUTPUT_NUMBER 1  # Which *CONNECTED* Physical video output to use (Defaults to 1)
 #NOTE: By only considering *CONNECTED* output, this maximizes the chance of finding an output
@@ -169,6 +170,25 @@ load_config_var COMMAND_WHITELIST "^$"  # Default is no commands allowed
 load_config_var TOUCH_DEBUG_LEVEL 1
 load_config_var DEBUG_MODE false
 load_config_var VNC_SERVER ""  1 #Mask password in log
+
+normalize_chromium_gl_mode() {
+    local raw_mode="${CHROMIUM_GL_MODE,,}"
+    case "$raw_mode" in
+        ""|auto)
+            CHROMIUM_GL_MODE=""
+            ;;
+        swiftshader|desktop|egl|angle)
+            CHROMIUM_GL_MODE="$raw_mode"
+            ;;
+        *)
+            bashio::log.warning "Unsupported chromium_gl_mode='$CHROMIUM_GL_MODE'; falling back to auto"
+            CHROMIUM_GL_MODE=""
+            ;;
+    esac
+    export CHROMIUM_GL_MODE
+}
+
+normalize_chromium_gl_mode
 
 is_valid_port() {
     local maybe_port="$1"

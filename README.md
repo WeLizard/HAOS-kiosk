@@ -24,9 +24,11 @@ displays.
 
 - Standard mouse, touchscreen, and keyboard interactions should work
   automatically as well as audio
-- Supports touchscreens gestures, screen rotation, and onscreen keyboard
-- Includes REST API that can be used to control the display state and to
-  send new URLs (e.g., dashboards) to the kiosk browser.
+  - Supports touchscreens gestures, screen rotation, and onscreen keyboard
+  - Includes REST API that can be used to control the display state and to
+    send new URLs (e.g., dashboards) to the kiosk browser.
+  - Exposes a configurable Chromium GL backend in add-on settings for boxes
+    that need software rendering (`SwiftShader`) instead of the default GPU path.
 
 You can press `ctl-R` at any time to refresh ( reload) the browser. \
 Alternatively, you can right click (or long press touchscreen) to access

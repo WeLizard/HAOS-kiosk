@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2-welizard.18 - March 2026
+
+- Add an explicit Chromium GL backend setting to the add-on configuration:
+  - expose `chromium_gl_mode` in the HA UI instead of relying on hidden environment overrides
+  - support `auto`, `swiftshader`, `desktop`, `egl`, and `angle`
+  - allow problematic HDMI/WebGL installs to switch to software GL without hardcoding display-specific flags in code.
+
 ## v1.3.2-welizard.17 - March 2026
 
 - Remove startup hardcoding of the display target:
