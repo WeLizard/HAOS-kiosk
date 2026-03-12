@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.2-welizard.40 - March 2026
+
+- Replace the temporary `.39` `--disable-webgl` phase with Chromium's official
+  opt-in software WebGL fallback:
+  `--use-gl=angle --use-angle=swiftshader-webgl --enable-unsafe-swiftshader`.
+- Keep the host-only `.38` compositor guards (`UseSkiaRenderer` off,
+  `--disable-gpu-compositing`, `--disable-oop-rasterization`) so the HDMI host
+  path stays on the already-restored stable scene output while only the avatar
+  WebGL path is pushed onto SwiftShader.
+
 ## v1.3.2-welizard.39 - March 2026
 
 - Keep the `.38` host compositor fixes, but disable WebGL in Chromium with

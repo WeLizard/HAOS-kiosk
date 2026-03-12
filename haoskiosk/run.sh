@@ -236,7 +236,9 @@ resolve_browser_binary() {
                 --disable-features=UseSkiaRenderer
                 --disable-gpu-compositing
                 --disable-oop-rasterization
-                --disable-webgl
+                --use-gl=angle
+                --use-angle=swiftshader-webgl
+                --enable-unsafe-swiftshader
                 --password-store=basic
                 --remote-debugging-address=127.0.0.1
                 --remote-debugging-port="$CHROMIUM_DEVTOOLS_PORT"
