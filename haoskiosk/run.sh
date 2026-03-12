@@ -195,6 +195,20 @@ normalize_chromium_gl_mode() {
 
 normalize_chromium_gl_mode
 
+is_alpine_chromium_container() {
+    [ -f /etc/os-release ] || return 1
+    grep -qi '^ID=alpine' /etc/os-release
+}
+
+use_container_safe_angle_profile() {
+    CHROMIUM_USE_GL_FLAG="angle"
+    if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
+        CHROMIUM_USE_ANGLE_FLAG="default"
+    fi
+    CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
+    CHROMIUM_DISABLE_GPU_COMPOSITING=1
+}
+
 resolve_chromium_gl_flags() {
     CHROMIUM_USE_GL_FLAG=""
     CHROMIUM_USE_ANGLE_FLAG="${CHROMIUM_ANGLE_BACKEND:-}"
@@ -204,18 +218,25 @@ resolve_chromium_gl_flags() {
 
     case "$CHROMIUM_GL_MODE" in
         "")
-            # Auto mode should behave like a normal Chromium launch on a
-            # regular desktop display: let Chromium pick its own compositor /
-            # GPU strategy instead of forcing ANGLE, SwiftShader or blocklist
-            # bypasses from the add-on.  Explicit modes remain available for
-            # targeted debugging, but the default path must stay boring.
-            CHROMIUM_USE_GL_FLAG=""
-            CHROMIUM_USE_ANGLE_FLAG=""
-            CHROMIUM_DISABLE_GPU_COMPOSITING=0
-            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=0
-            CHROMIUM_FORCE_GPU_RASTERIZATION=0
-            CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=0
-            bashio::log.info "Auto GPU: using Chromium default GL/compositor profile"
+            if [ -e /dev/dri/renderD128 ] && is_alpine_chromium_container; then
+                # The current add-on Chromium build on Alpine exposes ANGLE
+                # (egl-angle/default) but not native desktop/egl GL backends.
+                # Use the stable container profile: ANGLE for WebGL, software
+                # compositor for the rest of the page. This avoids the black
+                # screen / GPU crash storm on the HDMI box.
+                bashio::log.info "Auto GPU: Alpine container Chromium detected, using container-safe ANGLE profile"
+                use_container_safe_angle_profile
+            else
+                # Outside the Alpine container case, keep auto mode boring and
+                # let Chromium choose the normal desktop path by itself.
+                CHROMIUM_USE_GL_FLAG=""
+                CHROMIUM_USE_ANGLE_FLAG=""
+                CHROMIUM_DISABLE_GPU_COMPOSITING=0
+                CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=0
+                CHROMIUM_FORCE_GPU_RASTERIZATION=0
+                CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=0
+                bashio::log.info "Auto GPU: using Chromium default GL/compositor profile"
+            fi
             ;;
         swiftshader)
             # Full software rendering path: SwiftShader provides WebGL via
@@ -238,16 +259,24 @@ resolve_chromium_gl_flags() {
             if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
                 CHROMIUM_USE_ANGLE_FLAG="default"
             fi
+            if is_alpine_chromium_container; then
+                CHROMIUM_DISABLE_GPU_COMPOSITING=1
+            fi
             ;;
         gl|vulkan)
             CHROMIUM_USE_GL_FLAG="angle"
             CHROMIUM_USE_ANGLE_FLAG="$CHROMIUM_GL_MODE"
             ;;
         desktop|egl)
-            CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"
-            # Direct EGL/desktop GL still needs blocklist bypass for many
-            # Intel/AMD iGPUs that Chromium blocks by default.
-            CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
+            if is_alpine_chromium_container; then
+                bashio::log.warning "Chromium GL mode '$CHROMIUM_GL_MODE' is not supported by the current Alpine Chromium build; using container-safe ANGLE profile instead"
+                use_container_safe_angle_profile
+            else
+                CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"
+                # Direct EGL/desktop GL still needs blocklist bypass for many
+                # Intel/AMD iGPUs that Chromium blocks by default.
+                CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
+            fi
             ;;
     esac
 
