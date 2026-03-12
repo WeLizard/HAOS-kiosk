@@ -234,6 +234,7 @@ resolve_browser_binary() {
                 --disable-session-crashed-bubble
                 --disable-infobars
                 --disable-features=UseSkiaRenderer
+                --disable-gpu-compositing
                 --disable-oop-rasterization
                 --password-store=basic
                 --remote-debugging-address=127.0.0.1

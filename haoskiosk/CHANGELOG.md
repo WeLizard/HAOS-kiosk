@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.2-welizard.38 - March 2026
+
+- Keep the `.37` Linux non-Skia path, but also disable GPU compositing with
+  `--disable-gpu-compositing`.
+- This is the next narrow host-only step after confirming that even a simple
+  `http://localhost:48123/` landing page still crashes in Chromium's
+  compositor path (`texStorage2D -> SharedImage -> GPU process exited`) before
+  Kiosk Scene-specific rendering is involved.
+
 ## v1.3.2-welizard.37 - March 2026
 
 - Keep the minimal Chromium profile from `.36`, but disable `UseSkiaRenderer`
