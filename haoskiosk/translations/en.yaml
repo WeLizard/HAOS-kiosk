@@ -40,6 +40,18 @@ configuration:
     items:
       chromium: "Chromium"
       luakit: "Luakit"
+  chromium_profile:
+    name: "Chromium Profile"
+    description: |
+      Pick a tested Chromium flag profile. `Legacy Neiri` reproduces the
+      older hardcoded launch used by the previously working direct Neiri
+      runtime. `Minimal X11` keeps Chromium close to a plain browser. Use
+      `Custom` only when you explicitly want to control the advanced flags
+      below. [Default: Legacy Neiri]
+    items:
+      legacy_neiri: "Legacy Neiri"
+      minimal: "Minimal X11"
+      custom: "Custom"
   chromium_use_gl:
     name: "Chromium GL Mode"
     description: |

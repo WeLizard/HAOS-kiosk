@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2-welizard.44 - March 2026
+
+- Add a single `Legacy Neiri` Chromium profile that restores the older
+  hardcoded working launch flags without requiring manual toggle hunting.
+- Keep `Minimal X11` and `Custom` profiles available for narrower HDMI
+  debugging when the legacy profile is not desired.
+
 ## v1.3.2-welizard.43 - March 2026
 
 - Add explicit advanced toggles for the two Chromium flags that were part of

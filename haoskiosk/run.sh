@@ -87,6 +87,7 @@ declare -a BROWSER_FLAGS=()
 BROWSER_PROCESS_MATCH=""
 CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
 CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
+CHROMIUM_PROFILE="${CHROMIUM_PROFILE:-legacy_neiri}"
 CHROMIUM_USE_GL="${CHROMIUM_USE_GL:-auto}"
 CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-default}"
 
@@ -134,6 +135,7 @@ load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
 load_config_var BROWSER_REFRESH 0
 load_config_var BROWSER_ENGINE "chromium"
+load_config_var CHROMIUM_PROFILE "legacy_neiri"
 load_config_var CHROMIUM_USE_GL "auto"
 load_config_var CHROMIUM_ANGLE_BACKEND "default"
 load_config_var CHROMIUM_ENABLE_GPU_RASTERIZATION false
@@ -164,6 +166,40 @@ load_config_var REST_BEARER_TOKEN "" 1  # Mask token in log
 load_config_var COMMAND_WHITELIST "^$"  # Default is no commands allowed
 load_config_var DEBUG_MODE false
 load_config_var VNC_SERVER ""  1 #Mask password in log
+
+apply_chromium_profile() {
+    case "${CHROMIUM_PROFILE,,}" in
+        legacy_neiri)
+            CHROMIUM_USE_GL="angle"
+            CHROMIUM_ANGLE_BACKEND="default"
+            CHROMIUM_ENABLE_GPU_RASTERIZATION=true
+            CHROMIUM_IGNORE_GPU_BLOCKLIST=true
+            CHROMIUM_DISABLE_SKIA_RENDERER=false
+            CHROMIUM_DISABLE_GPU_COMPOSITING=false
+            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
+            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
+            ;;
+        minimal)
+            CHROMIUM_USE_GL="auto"
+            CHROMIUM_ANGLE_BACKEND="default"
+            CHROMIUM_ENABLE_GPU_RASTERIZATION=false
+            CHROMIUM_IGNORE_GPU_BLOCKLIST=false
+            CHROMIUM_DISABLE_SKIA_RENDERER=false
+            CHROMIUM_DISABLE_GPU_COMPOSITING=false
+            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
+            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
+            ;;
+        custom)
+            ;;
+        *)
+            bashio::log.error "Unsupported CHROMIUM_PROFILE='$CHROMIUM_PROFILE'"
+            exit 1
+            ;;
+    esac
+}
+
+apply_chromium_profile
+bashio::log.info "Effective Chromium profile: profile=$CHROMIUM_PROFILE use_gl=$CHROMIUM_USE_GL angle_backend=$CHROMIUM_ANGLE_BACKEND enable_gpu_rasterization=$CHROMIUM_ENABLE_GPU_RASTERIZATION ignore_gpu_blocklist=$CHROMIUM_IGNORE_GPU_BLOCKLIST disable_skia=$CHROMIUM_DISABLE_SKIA_RENDERER disable_gpu_compositing=$CHROMIUM_DISABLE_GPU_COMPOSITING disable_oop_rasterization=$CHROMIUM_DISABLE_OOP_RASTERIZATION unsafe_swiftshader=$CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER"
 
 compose_target_url() {
     local base_url="$1"
@@ -225,6 +261,7 @@ esac
 export BROWSER_ENGINE
 export CHROMIUM_DEVTOOLS_PORT
 export CHROMIUM_PROFILE_DIR
+export CHROMIUM_PROFILE
 export CHROMIUM_USE_GL
 export CHROMIUM_ANGLE_BACKEND
 
@@ -330,7 +367,7 @@ if [ "$BROWSER_ENGINE" = "chromium" ]; then
     if [ -n "$chromium_version" ]; then
         bashio::log.info "Chromium version: $chromium_version"
     fi
-    bashio::log.info "Chromium tuning: use_gl=$CHROMIUM_USE_GL angle_backend=$CHROMIUM_ANGLE_BACKEND enable_gpu_rasterization=$CHROMIUM_ENABLE_GPU_RASTERIZATION ignore_gpu_blocklist=$CHROMIUM_IGNORE_GPU_BLOCKLIST disable_skia=$CHROMIUM_DISABLE_SKIA_RENDERER disable_gpu_compositing=$CHROMIUM_DISABLE_GPU_COMPOSITING disable_oop_rasterization=$CHROMIUM_DISABLE_OOP_RASTERIZATION unsafe_swiftshader=$CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER"
+    bashio::log.info "Chromium tuning: profile=$CHROMIUM_PROFILE use_gl=$CHROMIUM_USE_GL angle_backend=$CHROMIUM_ANGLE_BACKEND enable_gpu_rasterization=$CHROMIUM_ENABLE_GPU_RASTERIZATION ignore_gpu_blocklist=$CHROMIUM_IGNORE_GPU_BLOCKLIST disable_skia=$CHROMIUM_DISABLE_SKIA_RENDERER disable_gpu_compositing=$CHROMIUM_DISABLE_GPU_COMPOSITING disable_oop_rasterization=$CHROMIUM_DISABLE_OOP_RASTERIZATION unsafe_swiftshader=$CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER"
     bashio::log.info "Chromium launch flags: ${BROWSER_FLAGS[*]}"
 fi
 
