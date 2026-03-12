@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.2-welizard.50 - March 2026
+
+- Add a `Recovery Baseline` Chromium profile and make it the default profile
+  for the next HDMI verification pass.
+- This restores the early `c6378e1` Chromium launcher behavior while keeping
+  the current shared `target_url.py` path for direct `Kiosk Scene` URLs such
+  as `localhost:48123/scene/`.
+- Bring back the old Chromium runtime cache reset, seeded profile preferences,
+  prompt suppression, and hard manual reload path for this profile only.
+
 ## v1.3.2-welizard.49 - March 2026
 
 - Fix Chromium profile configuration so HA UI options are actually honored.
