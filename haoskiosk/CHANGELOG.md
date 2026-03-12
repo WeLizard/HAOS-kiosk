@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.2-welizard.37 - March 2026
+
+- Keep the minimal Chromium profile from `.36`, but disable `UseSkiaRenderer`
+  so Linux falls back to Chromium's older GL renderer path instead of the
+  current `SkiaRenderer` + `SharedImage` compositor path that is crashing on
+  the live Intel HDMI box.
+- Keep `--disable-oop-rasterization` in place; do not reintroduce ANGLE, EGL,
+  or GPU blocklist overrides.
+
 ## v1.3.2-welizard.36 - March 2026
 
 - Keep the cleaned Chromium default profile from `.35`, but disable OOP
