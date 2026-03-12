@@ -209,6 +209,15 @@ use_container_safe_angle_profile() {
     CHROMIUM_DISABLE_GPU_COMPOSITING=1
 }
 
+use_container_hardware_egl_profile() {
+    CHROMIUM_USE_GL_FLAG="egl"
+    CHROMIUM_USE_ANGLE_FLAG=""
+    CHROMIUM_DISABLE_GPU_COMPOSITING=0
+    CHROMIUM_FORCE_GPU_RASTERIZATION=1
+    CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=0
+    CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
+}
+
 resolve_chromium_gl_flags() {
     CHROMIUM_USE_GL_FLAG=""
     CHROMIUM_USE_ANGLE_FLAG="${CHROMIUM_ANGLE_BACKEND:-}"
@@ -219,13 +228,12 @@ resolve_chromium_gl_flags() {
     case "$CHROMIUM_GL_MODE" in
         "")
             if [ -e /dev/dri/renderD128 ] && is_alpine_chromium_container; then
-                # The current add-on Chromium build on Alpine exposes ANGLE
-                # (egl-angle/default) but not native desktop/egl GL backends.
-                # Use the stable container profile: ANGLE for WebGL, software
-                # compositor for the rest of the page. This avoids the black
-                # screen / GPU crash storm on the HDMI box.
-                bashio::log.info "Auto GPU: Alpine container Chromium detected, using container-safe ANGLE profile"
-                use_container_safe_angle_profile
+                # Keep the default Alpine/x86 HDMI path aligned with the first
+                # Chromium runtime that actually drove the physical display:
+                # hardware EGL plus blocklist bypass. This is the closest thing
+                # we have to the historically working profile for the kiosk box.
+                bashio::log.info "Auto GPU: Alpine container Chromium detected, using hardware EGL profile"
+                use_container_hardware_egl_profile
             else
                 # Outside the Alpine container case, keep auto mode boring and
                 # let Chromium choose the normal desktop path by itself.
@@ -268,9 +276,9 @@ resolve_chromium_gl_flags() {
             CHROMIUM_USE_ANGLE_FLAG="$CHROMIUM_GL_MODE"
             ;;
         desktop|egl)
-            if is_alpine_chromium_container; then
-                bashio::log.warning "Chromium GL mode '$CHROMIUM_GL_MODE' is not supported by the current Alpine Chromium build; using container-safe ANGLE profile instead"
-                use_container_safe_angle_profile
+            if is_alpine_chromium_container && [ "$CHROMIUM_GL_MODE" = "egl" ]; then
+                bashio::log.info "Explicit Chromium GL mode 'egl': using hardware EGL profile on Alpine container"
+                use_container_hardware_egl_profile
             else
                 CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"
                 # Direct EGL/desktop GL still needs blocklist bypass for many
