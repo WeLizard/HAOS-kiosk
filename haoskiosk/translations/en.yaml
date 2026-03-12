@@ -29,7 +29,7 @@ configuration:
     name: "Browser Refresh"
     description: |
       Browser refresh interval in seconds; 0 for never [Default: 0]
-      Note: Recommended since on RPi, console messages can overwrite browser
+      Note: Keep at 0 unless you explicitly need periodic recovery
   browser_engine:
     name: "Browser Engine"
     description: |
@@ -144,5 +144,5 @@ configuration:
   debug_mode:
     name: "Debug Mode"
     description: |
-      Launch X and Openbox but not Luakit browser. [Default: False]
+      Launch X and Openbox but not the kiosk browser. [Default: False]
       Manually access using: sudo docker -exec -it addon_haoskiosk bash

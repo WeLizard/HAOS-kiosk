@@ -33,8 +33,9 @@ Alternatively, you can right click (or long press touchscreen) to access
 browser menu that includes options for page `Back`, `Forward`, `Stop`, and
 `Reload`.
 
-**NOTE:** You must enter your HA username and password in the
-*Configuration* tab for the Add-on to start.
+**NOTE:** HA username and password are optional.
+If they are omitted, the add-on still starts, but automatic login on HA auth
+pages is disabled.
 
 **NOTE:** The Add-on requires a valid, connected display in order to
 start.\
@@ -80,8 +81,8 @@ ______________________________________________________________________
 2. Click on the Add-on, press **Install** and wait until the Add-on is
    installed.
 
-3. You must enter your HA username and password in the **Configuration**
-   tab.
+3. Optionally enter your HA username and password in the **Configuration**
+   tab if you want the add-on to auto-submit the HA login form.
 
 4. Press **Start** to run the Add-on.
 
@@ -135,9 +136,9 @@ Level of zoom with `100` being 100%.\
 ### Browser Refresh
 
 Time between browser refreshes. Set to `0` to disable.\
-Recommended because with the default RPi config, console errors *may*
-overwrite the dashboard.\
-(Default: 600 seconds)
+For the Chromium runtime the recommended default is `0`, so the display path
+does not reload itself unless you explicitly need periodic recovery.\
+(Default: 0 seconds)
 
 ### Screen Timeout
 
@@ -337,7 +338,7 @@ ______________________________________________________________________
 ### launch_url {"url": "\<url>"}
 
 Launch the specified 'url' in the kiosk display. Overwrites current active
-tab. If no url supplied, use HA_URL/HA_DASHBOARD as default url.
+tab. If no url supplied, use the resolved default target URL (`HA_TARGET_URL`).
 
 Usage:
 
@@ -853,7 +854,7 @@ Examples:
 - **kiosk.forward**: Go forward in browser history
 - **kiosk.refresh_browser**: Reload current page
 - **kiosk.launch_url <url>**: Launch <url> in existing tab/window.\
-  If no <url> given, use HA_URL/HA_DASHBOARD as default
+  If no <url> given, use the resolved default target URL (`HA_TARGET_URL`)
 - **kiosk.display_on <timeout>**: Turn on display with optional timeout
 - **kiosk.display_off**: Turn off display immediately
 - **kiosk.toggle_keyboard**: Toggle onscreen keyboard
@@ -912,11 +913,10 @@ clicking on the `X` next to them):
 "3_TOUCH_1_SWIPE_RIGHT": {"cmds": "kiosk.back", "msg": "Go back in the history browser"}
 ```
 
-- **2-Finger Triple Tap**: *Restore Default HA dashboard
-  (HA_URL/HA_Dashboard)*
+- **2-Finger Triple Tap**: *Restore the configured default target URL*
 
 ```
-"2_TOUCH_3_TAP": {"cmds": "kiosk.launch_url", "msg": "Restore default dashboard: HA_URL/HA_DASHBOARD"}
+"2_TOUCH_3_TAP": {"cmds": "kiosk.launch_url", "msg": "Restore configured default target URL"}
 ```
 
 - **2-Finger Quadruple Tap**: *Open Google search*

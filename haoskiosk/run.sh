@@ -130,7 +130,7 @@ load_config_var HA_URL "http://localhost:8123"
 load_config_var HA_DASHBOARD ""
 load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
-load_config_var BROWSER_REFRESH 600
+load_config_var BROWSER_REFRESH 0
 load_config_var BROWSER_ENGINE "chromium"
 load_config_var SCREEN_TIMEOUT 600  # Default to 600 seconds
 load_config_var OUTPUT_NUMBER 1  # Which *CONNECTED* Physical video output to use (Defaults to 1)
@@ -242,8 +242,6 @@ resolve_browser_binary() {
                 --kiosk
                 --ozone-platform=x11
                 --touch-events=enabled
-                --enable-gpu-rasterization
-                --ignore-gpu-blocklist
             )
             BROWSER_PROCESS_MATCH='chromium'
             ;;
@@ -261,6 +259,19 @@ browser_process_running() {
 
 resolve_browser_binary
 bashio::log.info "Using browser engine: $BROWSER_ENGINE [$BROWSER]"
+if [ "$BROWSER_ENGINE" = "chromium" ]; then
+    chromium_package="$(apk info -v chromium 2>/dev/null | head -n 1 || true)"
+    chromium_version="$("$BROWSER" --version 2>/dev/null | head -n 1 || true)"
+    if [ -n "$chromium_package" ]; then
+        bashio::log.info "Chromium package: $chromium_package"
+    fi
+    if [ -n "$chromium_version" ]; then
+        bashio::log.info "Chromium version: $chromium_version"
+    fi
+    # Keep the real display on Chromium's default GPU path. Forcing rasterization
+    # and blocklist overrides made the HDMI runtime less stable on the target box.
+    bashio::log.info "Chromium launch flags: ${BROWSER_FLAGS[*]}"
+fi
 
 ################################################################################
 ### GTK and DBUS-related environment variables to improve stability

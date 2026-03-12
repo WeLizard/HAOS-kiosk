@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.2-welizard.35 - March 2026
+
+- Remove forced `--enable-gpu-rasterization` and `--ignore-gpu-blocklist`
+  from the default Chromium launch profile so the HDMI runtime stays on the
+  browser's normal GPU path by default.
+- Unify default launch URL resolution around `HA_TARGET_URL` across `run.sh`,
+  REST handlers, gesture handlers, and browser control.
+- Align Chromium refresh defaults to `0` consistently between add-on config and
+  watchdog runtime.
+- Log the effective Chromium package/version and launch flags at startup so
+  live HDMI runs can be compared against the actual browser build.
+
 ## v1.3.2-welizard.34 - March 2026
 
 - Keep the rollback baseline from `.33`, but stop forcing `--use-gl=egl`.

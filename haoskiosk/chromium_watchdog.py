@@ -40,7 +40,7 @@ elif RAW_AUTO_LOGIN in {"0", "false", "no", "off"}:
 else:
     HA_AUTO_LOGIN = bool(HA_USERNAME and HA_PASSWORD)
 LOGIN_DELAY_MS = int(float(os.getenv("LOGIN_DELAY") or "1") * 1000)
-BROWSER_REFRESH = max(0, int(os.getenv("BROWSER_REFRESH") or "600"))
+BROWSER_REFRESH = max(0, int(os.getenv("BROWSER_REFRESH") or "0"))
 DARK_MODE = (os.getenv("DARK_MODE") or "true").strip().lower() == "true"
 RAW_SIDEBAR = (os.getenv("HA_SIDEBAR") or "").strip().lower()
 RAW_THEME = (os.getenv("HA_THEME") or "").strip()

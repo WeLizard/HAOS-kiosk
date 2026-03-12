@@ -24,20 +24,20 @@ displays.
 
 - Standard mouse, touchscreen, and keyboard interactions should work
   automatically as well as audio
-  - Supports touchscreens gestures, screen rotation, and onscreen keyboard
-  - Includes REST API that can be used to control the display state and to
-    send new URLs (e.g., dashboards) to the kiosk browser.
-  - Exposes configurable Chromium GL backends in add-on settings so the
-    display target stays user-configured while problematic HDMI boxes can try
-    `SwiftShader`, explicit ANGLE `GL`, or ANGLE `Vulkan` without shell hacks.
+- Supports touchscreen gestures, screen rotation, and onscreen keyboard
+- Includes REST API that can be used to control the display state and to
+  send new URLs (e.g., dashboards) to the kiosk browser
+- Keeps Chromium as the modern browser runtime while preserving the original
+  HAOS-kiosk host responsibilities: Xorg, display control, touch, and REST
 
 You can press `ctl-R` at any time to refresh ( reload) the browser. \
 Alternatively, you can right click (or long press touchscreen) to access
 browser menu that includes options for page `Back`, `Forward`, `Stop`, and
 `Reload`.
 
-**NOTE:** You must enter your HA username and password in the
-*Configuration* tab for the Add-on to start.
+**NOTE:** HA username and password are optional.
+If they are omitted, the add-on still starts, but automatic login on HA auth
+pages is disabled.
 
 **NOTE:** The Add-on requires a valid, connected display in order to
 start.\
@@ -83,8 +83,8 @@ ______________________________________________________________________
 2. Click on the Add-on, press **Install** and wait until the Add-on is
    installed.
 
-3. You must enter your HA username and password in the **Configuration**
-   tab.
+3. Optionally enter your HA username and password in the **Configuration**
+   tab if you want the add-on to auto-submit the HA login form.
 
 4. Press **Start** to run the Add-on.
 
@@ -142,9 +142,9 @@ Level of zoom with `100` being 100%.\
 ### Browser Refresh
 
 Time between browser refreshes. Set to `0` to disable.\
-Recommended because with the default RPi config, console errors *may*
-overwrite the dashboard.\
-(Default: 600 seconds)
+For the Chromium runtime the recommended default is `0`, so the display path
+does not reload itself unless you explicitly need periodic recovery.\
+(Default: 0 seconds)
 
 ### Screen Timeout
 
