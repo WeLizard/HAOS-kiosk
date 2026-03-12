@@ -3,7 +3,7 @@ name: "HAOS Kiosk Display (Welizard Chromium Fork)"
 description: |
   Chromium/WebGL-focused Welizard fork of the original HAOS Kiosk Display by
   Jeff Kosowsky for local HAOS dashboard screens and touch displays.
-version: "1.3.2-welizard.28"
+version: "1.3.2-welizard.29"
 slug: "haoskiosk"
 
 arch:
@@ -22,7 +22,6 @@ panel_title: "Kiosk Display"
 panel_icon: "mdi:television-classic"
 homeassistant_api: true
 auth_api: true
-full_access: true
 audio: true
 video: true
 usb: true
@@ -79,7 +78,7 @@ options:
   ha_dashboard: "http://localhost:48123/scene/"
   login_delay: 1.0
   zoom_level: 100
-  browser_refresh: 600
+  browser_refresh: 0
   browser_engine: "chromium"
   chromium_gl_mode: "auto"
   screen_timeout: 0

@@ -29,8 +29,8 @@ configuration:
   browser_refresh:
     name: "Browser Refresh"
     description: |
-      Browser refresh interval in seconds; 0 for never [Default: 600]
-      Note: Recommended since on RPi, console messages can overwrite browser
+      Browser refresh interval in seconds; 0 for never [Default: 0]
+      Keep this at 0 for `Kiosk Scene` and other event-driven display pages.
   browser_engine:
     name: "Browser Engine"
     description: |
@@ -44,12 +44,10 @@ configuration:
   chromium_gl_mode:
     name: "Chromium GL Mode"
     description: |
-      Select the Chromium OpenGL backend. Keep `Auto` for the default path.
-      Use `SwiftShader` to force Chromium's supported software WebGL fallback
-      for trusted local pages such as `Kiosk Scene` when hardware GL leaves
-      the avatar blank or the screen black. Use `GL` or `Vulkan` to force
-      Chromium's ANGLE backend to a specific renderer when the generic
-      `ANGLE` mode still cannot create a WebGL context on the HDMI device.
+      Select the Chromium OpenGL backend. Keep `Auto` for the normal desktop
+      Chromium path with no forced GPU overrides from the add-on. Use the
+      explicit modes only when you are intentionally debugging WebGL/GPU
+      behavior on the HDMI device.
       [Default: Auto]
     items:
       auto: "Auto"
@@ -142,7 +140,7 @@ configuration:
   ingress_runtime_port:
     name: "Ingress Runtime Port"
     description: |
-      Port used by Home Assistant ingress proxy target [Default: 8080].
+      Port used by Home Assistant ingress proxy target [Default: 8099].
       Keep this aligned with add-on ingress metadata unless you are
       intentionally overriding ingress routing.
   rest_authorization_token:

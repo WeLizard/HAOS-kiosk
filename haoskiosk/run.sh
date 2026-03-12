@@ -204,41 +204,12 @@ resolve_chromium_gl_flags() {
 
     case "$CHROMIUM_GL_MODE" in
         "")
-            # Auto mode: detect GPU hardware and configure accordingly.
-            if [ -e /dev/dri/renderD128 ]; then
-                # Real GPU render node available.  Use EGL directly through
-                # Mesa (bypasses ANGLE translation layer).  Compositor stays
-                # in software to avoid SharedImage/texStorage2D crashes that
-                # kill the GPU process on Intel iGPUs in containers.  The GPU
-                # process stays alive for WebGL contexts.
-                local gpu_driver=""
-                for drv_path in /sys/class/drm/card[0-9]*/device/driver; do
-                    [ -e "$drv_path" ] || continue
-                    gpu_driver=$(basename "$(readlink "$drv_path")")
-                    break
-                done
-                bashio::log.info "Auto GPU: renderD128=present driver=${gpu_driver:-unknown}"
-                # Use hardware ANGLE (GLES→native GL via Mesa).  The add-on
-                # runs with full_access=true so the container has unrestricted
-                # GPU memory mapping (no cgroup OOM on texImage2D).
-                # GPU compositing stays off to avoid SharedImage/texStorage2D
-                # crashes that kill the GPU process on Intel iGPUs.
-                CHROMIUM_USE_GL_FLAG="angle"
-                if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
-                    CHROMIUM_USE_ANGLE_FLAG="default"
-                fi
-                CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
-                CHROMIUM_DISABLE_GPU_COMPOSITING=1
-            else
-                # No GPU render node — fall back to SwiftShader (software WebGL).
-                bashio::log.info "Auto GPU: no render node, using SwiftShader"
-                CHROMIUM_USE_GL_FLAG="angle"
-                if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
-                    CHROMIUM_USE_ANGLE_FLAG="swiftshader-webgl"
-                fi
-                CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=1
-                CHROMIUM_DISABLE_GPU_COMPOSITING=1
-            fi
+            # Auto mode should behave like a normal Chromium launch on a
+            # regular desktop display: let Chromium pick its own compositor /
+            # GPU strategy instead of forcing ANGLE, SwiftShader or blocklist
+            # bypasses from the add-on.  Explicit modes remain available for
+            # targeted debugging, but the default path must stay boring.
+            bashio::log.info "Auto GPU: using Chromium default GL/compositor profile"
             ;;
         swiftshader)
             # Full software rendering path: SwiftShader provides WebGL via
