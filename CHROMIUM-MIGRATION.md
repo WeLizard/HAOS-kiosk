@@ -85,3 +85,7 @@ official Chromium/ANGLE docs, the main lessons are:
   with the actual browser build.
 - Pin or otherwise control the Chromium package version before trusting any
   "it worked before" conclusion across rebuilds.
+- If Chromium still crashes in `SharedImage` / `RasterDecoder` on Alpine after
+  removing forced GL overrides, prefer the narrow `--disable-oop-rasterization`
+  switch before reintroducing broader ANGLE/EGL hacks. That switch targets the
+  failing raster path directly instead of replacing the whole GPU profile.

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2-welizard.36 - March 2026
+
+- Keep the cleaned Chromium default profile from `.35`, but disable OOP
+  rasterization with `--disable-oop-rasterization`.
+- Live HDMI logs still crash inside Chromium's `SharedImage` and
+  `RasterDecoder` path on Alpine, so this release forces the older raster path
+  without bringing back the previous ANGLE/EGL/blocklist hacks.
+
 ## v1.3.2-welizard.35 - March 2026
 
 - Remove forced `--enable-gpu-rasterization` and `--ignore-gpu-blocklist`
