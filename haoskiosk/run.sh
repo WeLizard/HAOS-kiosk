@@ -363,11 +363,11 @@ resolve_browser_binary() {
             append_chromium_flag_if_true "$CHROMIUM_DISABLE_OOP_RASTERIZATION" --disable-oop-rasterization
             append_chromium_feature_if_true "$CHROMIUM_DISABLE_SKIA_RENDERER" UseSkiaRenderer disabled_features
 
-            if [ "${CHROMIUM_PROFILE,,}" = "legacy_neiri" ]; then
+            if [ "${CHROMIUM_PROFILE,,}" = "legacy_neiri" ] || [ "${CHROMIUM_PROFILE,,}" = "swiftshader_scene" ]; then
                 # Chromium 144 on this Alpine/X11 HDMI path still tries to
-                # initialize Vulkan and then loses the GL context. Keep the
-                # legacy ANGLE+GL profile, but explicitly block the modern
-                # Vulkan/Graphite route for this one narrow experiment.
+                # initialize Vulkan and then loses the GL context. Explicitly
+                # block the modern Vulkan/Graphite route for these narrow
+                # display experiments.
                 disabled_features+=(Vulkan)
                 BROWSER_FLAGS+=(--disable-skia-graphite)
             fi

@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.2-welizard.52 - March 2026
+
+- Keep `SwiftShader Scene` as the default profile, but explicitly disable
+  Chromium `Vulkan` and `Skia Graphite` for that profile.
+- Live `.51` logs on the target HDMI box showed the scene loading while the
+  avatar fell back after `ANGLE Display::initialize` failed on missing Vulkan
+  extensions (`VK_KHR_surface`, `VK_KHR_xcb_surface`) and the GPU process
+  exited during initialization.
+- `.52` is a narrow follow-up to force the `.40`-style SwiftShader WebGL path
+  away from the broken Vulkan route on Chromium 144 Alpine.
+
 ## v1.3.2-welizard.51 - March 2026
 
 - Stop using `Recovery Baseline` as the default profile because it regressed
