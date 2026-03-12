@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.2-welizard.24
+# Version: 1.3.2-welizard.33
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -32,10 +32,8 @@
 #         AUDIO_SINK
 #         REST_PORT
 #         REST_IP
-#         INGRESS_RUNTIME_PORT
 #         REST_BEARER_TOKEN
 #         COMMAND_WHITELIST
-#         TOUCH_DEBUG_LEVEL
 #         VNC_SERVER
 #         DEBUG_MODE
 #
@@ -54,7 +52,7 @@
 #     - Set audio sink
 #     - Start Xinput parsing...
 #     - Start REST API server
-#     - Launch browser for the configured display target
+#     - Launch browser for url: $HA_URL/$HA_DASHBOARD
 #       [If not in DEBUG_MODE; Otherwise, just sleep]
 #
 ################################################################################
@@ -89,28 +87,11 @@ declare -a BROWSER_FLAGS=()
 BROWSER_PROCESS_MATCH=""
 CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
 CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
-CHROMIUM_GL_MODE="${CHROMIUM_GL_MODE:-}"
-CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-}"
-CHROMIUM_FORCE_GPU_RASTERIZATION="${CHROMIUM_FORCE_GPU_RASTERIZATION:-0}"
-CHROMIUM_IGNORE_GPU_BLOCKLIST="${CHROMIUM_IGNORE_GPU_BLOCKLIST:-0}"
-CHROMIUM_USE_GL_FLAG=""
-CHROMIUM_USE_ANGLE_FLAG=""
-CHROMIUM_DISABLE_GPU_COMPOSITING=0
-# If INGRESS_PORT is injected by Supervisor/runtime, it wins.
-# Otherwise we resolve it from add-on option INGRESS_RUNTIME_PORT (default 8099).
-INGRESS_PORT="${INGRESS_PORT:-}"
-# Ingress listener must be reachable by Supervisor proxy.
-INGRESS_BIND_IP="${INGRESS_BIND_IP:-0.0.0.0}"
-# Optional compatibility ingress listener (auto-selected between 8080/8099 if empty).
-INGRESS_COMPAT_PORT="${INGRESS_COMPAT_PORT:-}"
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
 load_config_var() {
-    # First, use an exported environment variable if already set
-    # (for debugging purposes). Do not treat shell-local defaults declared
-    # earlier in this script as a real override, or HA config values like
-    # chromium_gl_mode will be ignored.
+    # First, use existing variable if already set (for debugging purposes)
     # If not set, lookup configuration value
     # If null, use optional second parameter or else ""
     local VAR_NAME="$1"
@@ -118,8 +99,9 @@ load_config_var() {
     local MASK="${3:-}"
 
     local VALUE
-    if printenv "$VAR_NAME" >/dev/null 2>&1; then
-        VALUE="$(printenv "$VAR_NAME")"
+    #Check if $VAR_NAME exists before getting its value since 'set +x' mode
+    if declare -p "$VAR_NAME" >/dev/null 2>&1; then  #Variable exist, get its value
+        VALUE="${!VAR_NAME}"
     elif bashio::config.exists "${VAR_NAME,,}"; then
         VALUE="$(bashio::config "${VAR_NAME,,}")"
     else
@@ -150,7 +132,6 @@ load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
 load_config_var BROWSER_REFRESH 600
 load_config_var BROWSER_ENGINE "chromium"
-load_config_var CHROMIUM_GL_MODE auto
 load_config_var SCREEN_TIMEOUT 600  # Default to 600 seconds
 load_config_var OUTPUT_NUMBER 1  # Which *CONNECTED* Physical video output to use (Defaults to 1)
 #NOTE: By only considering *CONNECTED* output, this maximizes the chance of finding an output
@@ -169,210 +150,41 @@ load_config_var XORG_APPEND_REPLACE append
 load_config_var AUDIO_SINK auto
 load_config_var REST_PORT 8080
 load_config_var REST_IP "127.0.0.1"
-load_config_var INGRESS_RUNTIME_PORT 8099
 load_config_var REST_BEARER_TOKEN "" 1  # Mask token in log
 load_config_var COMMAND_WHITELIST "^$"  # Default is no commands allowed
-load_config_var TOUCH_DEBUG_LEVEL 1
 load_config_var DEBUG_MODE false
 load_config_var VNC_SERVER ""  1 #Mask password in log
 
-normalize_chromium_gl_mode() {
-    local raw_mode="${CHROMIUM_GL_MODE,,}"
-    case "$raw_mode" in
-        ""|auto)
-            CHROMIUM_GL_MODE=""
-            ;;
-        swiftshader|desktop|egl|angle|gl|vulkan)
-            CHROMIUM_GL_MODE="$raw_mode"
-            ;;
-        *)
-            bashio::log.warning "Unsupported chromium_gl_mode='$CHROMIUM_GL_MODE'; falling back to auto"
-            CHROMIUM_GL_MODE=""
-            ;;
-    esac
-    export CHROMIUM_GL_MODE
-}
+compose_target_url() {
+    local base_url="$1"
+    local dashboard_path="$2"
 
-normalize_chromium_gl_mode
+    base_url="$(echo "$base_url" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    dashboard_path="$(echo "$dashboard_path" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 
-is_alpine_chromium_container() {
-    [ -f /etc/os-release ] || return 1
-    grep -qi '^ID=alpine' /etc/os-release
-}
-
-use_container_safe_angle_profile() {
-    CHROMIUM_USE_GL_FLAG="angle"
-    if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
-        CHROMIUM_USE_ANGLE_FLAG="default"
+    if [[ "$dashboard_path" =~ ^https?:// ]]; then
+        printf '%s' "$dashboard_path"
+        return
     fi
-    CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
-    CHROMIUM_DISABLE_GPU_COMPOSITING=1
+
+    if [ -z "$base_url" ]; then
+        base_url="about:blank"
+    fi
+
+    if [ -z "$dashboard_path" ]; then
+        printf '%s' "$base_url"
+        return
+    fi
+
+    printf '%s/%s' "${base_url%/}" "${dashboard_path#/}"
 }
 
-use_container_hardware_egl_profile() {
-    CHROMIUM_USE_GL_FLAG="egl"
-    CHROMIUM_USE_ANGLE_FLAG=""
-    CHROMIUM_DISABLE_GPU_COMPOSITING=0
-    CHROMIUM_FORCE_GPU_RASTERIZATION=1
-    CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=0
-    CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
-}
-
-resolve_chromium_gl_flags() {
-    CHROMIUM_USE_GL_FLAG=""
-    CHROMIUM_USE_ANGLE_FLAG="${CHROMIUM_ANGLE_BACKEND:-}"
-    CHROMIUM_DISABLE_GPU_COMPOSITING=0
-    CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=0
-    CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST="${CHROMIUM_IGNORE_GPU_BLOCKLIST}"
-
-    case "$CHROMIUM_GL_MODE" in
-        "")
-            if [ -e /dev/dri/renderD128 ] && is_alpine_chromium_container; then
-                # Keep the default Alpine/x86 HDMI path aligned with the first
-                # Chromium runtime that actually drove the physical display:
-                # hardware EGL plus blocklist bypass. This is the closest thing
-                # we have to the historically working profile for the kiosk box.
-                bashio::log.info "Auto GPU: Alpine container Chromium detected, using hardware EGL profile"
-                use_container_hardware_egl_profile
-            else
-                # Outside the Alpine container case, keep auto mode boring and
-                # let Chromium choose the normal desktop path by itself.
-                CHROMIUM_USE_GL_FLAG=""
-                CHROMIUM_USE_ANGLE_FLAG=""
-                CHROMIUM_DISABLE_GPU_COMPOSITING=0
-                CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=0
-                CHROMIUM_FORCE_GPU_RASTERIZATION=0
-                CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=0
-                bashio::log.info "Auto GPU: using Chromium default GL/compositor profile"
-            fi
-            ;;
-        swiftshader)
-            # Full software rendering path: SwiftShader provides WebGL via
-            # ANGLE while the page compositor runs in software mode.
-            # Without --disable-gpu-compositing the GPU process still tries
-            # hardware compositing, crashes on devices without a working GPU
-            # driver, and takes the whole page with it (black screen).
-            CHROMIUM_USE_GL_FLAG="angle"
-            if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
-                CHROMIUM_USE_ANGLE_FLAG="swiftshader-webgl"
-            fi
-            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=1
-            CHROMIUM_DISABLE_GPU_COMPOSITING=1
-            ;;
-        angle)
-            CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"
-            CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
-            # ANGLE needs an explicit backend; default translates GLES to
-            # native GL and works on Intel/AMD Mesa drivers.
-            if [ -z "$CHROMIUM_USE_ANGLE_FLAG" ]; then
-                CHROMIUM_USE_ANGLE_FLAG="default"
-            fi
-            if is_alpine_chromium_container; then
-                CHROMIUM_DISABLE_GPU_COMPOSITING=1
-            fi
-            ;;
-        gl|vulkan)
-            CHROMIUM_USE_GL_FLAG="angle"
-            CHROMIUM_USE_ANGLE_FLAG="$CHROMIUM_GL_MODE"
-            ;;
-        desktop|egl)
-            if is_alpine_chromium_container && [ "$CHROMIUM_GL_MODE" = "egl" ]; then
-                bashio::log.info "Explicit Chromium GL mode 'egl': using hardware EGL profile on Alpine container"
-                use_container_hardware_egl_profile
-            else
-                CHROMIUM_USE_GL_FLAG="$CHROMIUM_GL_MODE"
-                # Direct EGL/desktop GL still needs blocklist bypass for many
-                # Intel/AMD iGPUs that Chromium blocks by default.
-                CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=1
-            fi
-            ;;
-    esac
-
-    export CHROMIUM_USE_GL_FLAG
-    export CHROMIUM_USE_ANGLE_FLAG
-    export CHROMIUM_DISABLE_GPU_COMPOSITING
-    export CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER
-    export CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST
-}
-
-resolve_chromium_gl_flags
-
-is_valid_port() {
-    local maybe_port="$1"
-    [[ "$maybe_port" =~ ^[0-9]+$ ]] || return 1
-    [ "$maybe_port" -ge 1024 ] && [ "$maybe_port" -le 65535 ]
-}
-
-TARGET_URL_RESULT=""
-if ! TARGET_URL_RESULT="$(python3 /target_url.py default 2>&1)"; then
-    bashio::log.warning "Failed to resolve HA_TARGET_URL from current settings ($TARGET_URL_RESULT); falling back to about:blank"
+HA_TARGET_URL="$(compose_target_url "$HA_URL" "$HA_DASHBOARD")"
+if [ -z "$HA_TARGET_URL" ]; then
     HA_TARGET_URL="about:blank"
-else
-    HA_TARGET_URL="$TARGET_URL_RESULT"
 fi
-
 export HA_TARGET_URL
 bashio::log.info "HA_TARGET_URL=$HA_TARGET_URL"
-
-if [ -z "$INGRESS_PORT" ]; then
-    INGRESS_PORT="$INGRESS_RUNTIME_PORT"
-fi
-
-if ! is_valid_port "$INGRESS_PORT"; then
-    bashio::log.warning "Invalid INGRESS_PORT='$INGRESS_PORT'; falling back to INGRESS_RUNTIME_PORT='$INGRESS_RUNTIME_PORT'"
-    INGRESS_PORT="$INGRESS_RUNTIME_PORT"
-fi
-if ! is_valid_port "$INGRESS_PORT"; then
-    bashio::log.warning "Invalid INGRESS_RUNTIME_PORT='$INGRESS_RUNTIME_PORT'; falling back to 8099"
-    INGRESS_PORT=8099
-fi
-
-if ! is_valid_port "$REST_PORT"; then
-    bashio::log.warning "Invalid REST_PORT='$REST_PORT'; falling back to 8080"
-    REST_PORT=8080
-fi
-
-if [ -z "$INGRESS_COMPAT_PORT" ]; then
-    case "$INGRESS_PORT" in
-        8099) INGRESS_COMPAT_PORT=8080 ;;
-        8080) INGRESS_COMPAT_PORT=8099 ;;
-        *) INGRESS_COMPAT_PORT="" ;;
-    esac
-fi
-if [ -n "$INGRESS_COMPAT_PORT" ] && ! is_valid_port "$INGRESS_COMPAT_PORT"; then
-    bashio::log.warning "Invalid INGRESS_COMPAT_PORT='$INGRESS_COMPAT_PORT'; disabling compatibility listener"
-    INGRESS_COMPAT_PORT=""
-fi
-
-if [ "$REST_PORT" = "$INGRESS_PORT" ]; then
-    case "$REST_IP" in
-        127.0.0.1|::1|localhost)
-            ALT_REST_PORT=8080
-            if [ "$ALT_REST_PORT" = "$INGRESS_PORT" ]; then
-                ALT_REST_PORT=8081
-            fi
-            if ! is_valid_port "$ALT_REST_PORT"; then
-                ALT_REST_PORT="$((REST_PORT + 1))"
-                if ! is_valid_port "$ALT_REST_PORT"; then
-                    ALT_REST_PORT=8081
-                fi
-            fi
-            bashio::log.warning "REST_PORT conflicts with INGRESS_PORT on loopback REST_IP='$REST_IP'; auto-adjusting REST_PORT to '$ALT_REST_PORT'"
-            REST_PORT="$ALT_REST_PORT"
-            ;;
-    esac
-fi
-
-export REST_PORT
-bashio::log.info "REST_PORT(final)=$REST_PORT"
-export INGRESS_PORT
-bashio::log.info "INGRESS_PORT=$INGRESS_PORT"
-if [ -n "$INGRESS_COMPAT_PORT" ]; then
-    export INGRESS_COMPAT_PORT
-    bashio::log.info "INGRESS_COMPAT_PORT=$INGRESS_COMPAT_PORT"
-fi
-export INGRESS_BIND_IP
-bashio::log.info "INGRESS_BIND_IP=$INGRESS_BIND_IP"
 
 # Resolve optional HA auto-login mode.
 # Auto-login is enabled only when both username and password are configured.
@@ -403,8 +215,6 @@ esac
 export BROWSER_ENGINE
 export CHROMIUM_DEVTOOLS_PORT
 export CHROMIUM_PROFILE_DIR
-export CHROMIUM_GL_MODE
-export CHROMIUM_ANGLE_BACKEND
 
 resolve_browser_binary() {
     case "$BROWSER_ENGINE" in
@@ -423,43 +233,19 @@ resolve_browser_binary() {
                 --no-default-browser-check
                 --disable-session-crashed-bubble
                 --disable-infobars
-                --disable-features=Translate,TranslateUI,AutofillServerCommunication,PasswordManagerOnboarding,PasswordCheck,PasswordManagerRedesign,OptimizationGuideModelDownloading
-                --disable-save-password-bubble
-                --disable-sync
-                --disable-search-engine-choice-screen
-                --disable-application-cache
-                --aggressive-cache-discard
                 --password-store=basic
                 --remote-debugging-address=127.0.0.1
                 --remote-debugging-port="$CHROMIUM_DEVTOOLS_PORT"
                 --user-data-dir="$CHROMIUM_PROFILE_DIR"
-                --disk-cache-dir=/tmp/haoskiosk-cache
-                --disk-cache-size=1
-                --media-cache-size=1
                 --window-position=0,0
                 --start-fullscreen
                 --kiosk
                 --ozone-platform=x11
                 --touch-events=enabled
+                --enable-gpu-rasterization
+                --ignore-gpu-blocklist
+                --use-gl=egl
             )
-            if [ "${CHROMIUM_FORCE_GPU_RASTERIZATION}" = "1" ]; then
-                BROWSER_FLAGS+=(--enable-gpu-rasterization)
-            fi
-            if [ "${CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST}" = "1" ]; then
-                BROWSER_FLAGS+=(--ignore-gpu-blocklist)
-            fi
-            if [ -n "${CHROMIUM_USE_GL_FLAG}" ]; then
-                BROWSER_FLAGS+=(--use-gl="$CHROMIUM_USE_GL_FLAG")
-            fi
-            if [ -n "${CHROMIUM_USE_ANGLE_FLAG}" ]; then
-                BROWSER_FLAGS+=(--use-angle="$CHROMIUM_USE_ANGLE_FLAG")
-            fi
-            if [ "${CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER}" = "1" ]; then
-                BROWSER_FLAGS+=(--enable-unsafe-swiftshader)
-            fi
-            if [ "${CHROMIUM_DISABLE_GPU_COMPOSITING}" = "1" ]; then
-                BROWSER_FLAGS+=(--disable-gpu-compositing)
-            fi
             BROWSER_PROCESS_MATCH='chromium'
             ;;
         luakit)
@@ -474,79 +260,8 @@ browser_process_running() {
     pgrep -f -- "$BROWSER_PROCESS_MATCH" > /dev/null 2>&1
 }
 
-clear_chromium_runtime_cache() {
-    [ "$BROWSER_ENGINE" = "chromium" ] || return 0
-
-    mkdir -p "$CHROMIUM_PROFILE_DIR"
-
-    local cache_paths=(
-        "$CHROMIUM_PROFILE_DIR/Cache"
-        "$CHROMIUM_PROFILE_DIR/Code Cache"
-        "$CHROMIUM_PROFILE_DIR/GPUCache"
-        "$CHROMIUM_PROFILE_DIR/DawnCache"
-        "$CHROMIUM_PROFILE_DIR/GrShaderCache"
-        "$CHROMIUM_PROFILE_DIR/ShaderCache"
-        "$CHROMIUM_PROFILE_DIR/Default/Cache"
-        "$CHROMIUM_PROFILE_DIR/Default/Code Cache"
-        "$CHROMIUM_PROFILE_DIR/Default/GPUCache"
-        "$CHROMIUM_PROFILE_DIR/Default/DawnCache"
-        "$CHROMIUM_PROFILE_DIR/Default/GrShaderCache"
-        "$CHROMIUM_PROFILE_DIR/Default/Service Worker"
-    )
-
-    local cache_path
-    for cache_path in "${cache_paths[@]}"; do
-        rm -rf "$cache_path"
-    done
-}
-
-seed_chromium_preferences() {
-    [ "$BROWSER_ENGINE" = "chromium" ] || return 0
-
-    local default_dir="$CHROMIUM_PROFILE_DIR/Default"
-    mkdir -p "$default_dir"
-
-    cat > "$default_dir/Preferences" <<'EOF'
-{
-  "autofill": {
-    "enabled": false
-  },
-  "browser": {
-    "check_default_browser": false,
-    "has_seen_welcome_page": true
-  },
-  "credentials_enable_service": false,
-  "distribution": {
-    "import_bookmarks": false,
-    "import_history": false,
-    "import_search_engine": false,
-    "make_chrome_default_for_user": false,
-    "skip_first_run_ui": true
-  },
-  "profile": {
-    "default_content_setting_values": {
-      "notifications": 2
-    },
-    "password_manager_enabled": false
-  },
-  "safebrowsing": {
-    "enabled": false
-  },
-  "sync_promo": {
-    "show_on_first_run_allowed": false
-  },
-  "translate": {
-    "enabled": false
-  }
-}
-EOF
-}
-
 resolve_browser_binary
 bashio::log.info "Using browser engine: $BROWSER_ENGINE [$BROWSER]"
-if [ "$BROWSER_ENGINE" = "chromium" ]; then
-    bashio::log.info "Chromium GL mode: mode=${CHROMIUM_GL_MODE:-auto} use-gl=${CHROMIUM_USE_GL_FLAG:-auto} use-angle=${CHROMIUM_USE_ANGLE_FLAG:-auto} unsafe-swiftshader=${CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER} disable-gpu-compositing=${CHROMIUM_DISABLE_GPU_COMPOSITING} gpu-rasterization=${CHROMIUM_FORCE_GPU_RASTERIZATION} ignore-gpu-blocklist=${CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST}"
-fi
 
 ################################################################################
 ### GTK and DBUS-related environment variables to improve stability
@@ -1020,37 +735,11 @@ pactl list short sinks | awk -v def="$sink" '{prefix = ($2 == def) ? "*" : " "; 
 
 ### Launch Xinput parsing...
 bashio::log.info "Starting Mouse & Touch input gesture command parsing..."
-python3 -u /mouse_touch_inputs.py -d "$TOUCH_DEBUG_LEVEL" -w "$COMMAND_WHITELIST" &
+python3 -u /mouse_touch_inputs.py  -d 1 -w "$COMMAND_WHITELIST" &
 
 #### Start  HAOSKiosk REST server
 bashio::log.info "Starting HAOSKiosk REST server..."
 python3 -u /rest_server.py &
-
-start_ingress_listener() {
-    local port="$1"
-    [ -n "$port" ] || return 0
-
-    if [ "$port" = "$REST_PORT" ]; then
-        case "$REST_IP" in
-            127.0.0.1|::1|localhost)
-                bashio::log.warning "Ingress port $port matches loopback REST listener ($REST_IP). Ingress may be unreachable."
-                ;;
-            *)
-                bashio::log.info "Ingress and REST share one listener on $REST_IP:$REST_PORT"
-                ;;
-        esac
-        return 0
-    fi
-
-    bashio::log.info "Starting HAOSKiosk ingress REST/UI server on $INGRESS_BIND_IP:$port..."
-    REST_IP="$INGRESS_BIND_IP" REST_PORT="$port" REST_INGRESS_MODE=true python3 -u /rest_server.py &
-}
-
-#### Start ingress REST/UI listeners (primary + optional compatibility port)
-start_ingress_listener "$INGRESS_PORT"
-if [ -n "$INGRESS_COMPAT_PORT" ] && [ "$INGRESS_COMPAT_PORT" != "$INGRESS_PORT" ]; then
-    start_ingress_listener "$INGRESS_COMPAT_PORT"
-fi
 
 #### Optionally start vnc server
 if [ -n "$VNC_SERVER" ]; then
@@ -1087,8 +776,6 @@ if [ "$DEBUG_MODE" != true ]; then
     if [ "$BROWSER_ENGINE" = "chromium" ]; then
         mkdir -p "$CHROMIUM_PROFILE_DIR"
         rm -f "$CHROMIUM_PROFILE_DIR"/Singleton*
-        clear_chromium_runtime_cache
-        seed_chromium_preferences
     fi
 
     "$BROWSER" "${BROWSER_FLAGS[@]}" "$HA_TARGET_URL" &

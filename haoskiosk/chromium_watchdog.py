@@ -14,17 +14,10 @@ import json
 import logging
 import os
 import re
-import subprocess
 import time
 from typing import Any
 
-from browser_ctl import (
-    ChromiumController,
-    get_saved_browser_url,
-    get_sleep_url,
-    is_browser_sleeping,
-    remember_active_url,
-)
+from browser_ctl import ChromiumController
 
 
 logging.basicConfig(
@@ -53,7 +46,6 @@ RAW_SIDEBAR = (os.getenv("HA_SIDEBAR") or "").strip().lower()
 RAW_THEME = (os.getenv("HA_THEME") or "").strip()
 POLL_INTERVAL = 2.0
 HARD_RELOAD_FREQ = 10
-DISPLAY_STATE_POLL_INTERVAL = max(2.0, float(os.getenv("DISPLAY_STATE_POLL_INTERVAL") or "2"))
 
 SIDEBAR_MAP = {
     "full": "",
@@ -87,22 +79,11 @@ def build_auto_login_script() -> str:
   const delayMs = {LOGIN_DELAY_MS};
   window.setTimeout(() => {{
     try {{
-      const usernameField =
-        document.querySelector('input[autocomplete="username"]') ||
-        document.querySelector('input[name="username"]') ||
-        document.querySelector('input[type="text"]');
-      const passwordField =
-        document.querySelector('input[autocomplete="current-password"]') ||
-        document.querySelector('input[name="password"]') ||
-        document.querySelector('input[type="password"]');
+      const usernameField = document.querySelector('input[autocomplete="username"]');
+      const passwordField = document.querySelector('input[autocomplete="current-password"]');
       const checkbox = document.querySelector('ha-checkbox');
-      const submitButton =
-        document.querySelector('button[type="submit"]') ||
-        document.querySelector('input[type="submit"]') ||
-        document.querySelector('ha-progress-button') ||
-        document.querySelector('ha-button') ||
-        document.querySelector('mwc-button');
-      if (!usernameField || !passwordField) {{
+      const submitButton = document.querySelector('ha-button, mwc-button');
+      if (!usernameField || !passwordField || !submitButton) {{
         return {{ ok: false, reason: 'missing-elements' }};
       }}
       usernameField.value = username;
@@ -113,18 +94,7 @@ def build_auto_login_script() -> str:
         checkbox.setAttribute('checked', '');
         checkbox.dispatchEvent(new Event('change', {{ bubbles: true }}));
       }}
-      if (submitButton && typeof submitButton.click === 'function') {{
-        submitButton.click();
-      }} else {{
-        const form = passwordField.closest('form');
-        if (form && typeof form.requestSubmit === 'function') {{
-          form.requestSubmit();
-        }} else if (form && typeof form.submit === 'function') {{
-          form.submit();
-        }} else {{
-          return {{ ok: false, reason: 'missing-submit' }};
-        }}
-      }}
+      submitButton.click();
       return {{ ok: true }};
     }} catch (error) {{
       return {{ ok: false, reason: String(error) }};
@@ -179,7 +149,7 @@ def build_settings_script(sidebar: str, theme: str) -> str:
 
 def is_auth_page(url: str) -> bool:
     """Return True if URL looks like HA auth page."""
-    return bool(re.match(rf"^{re.escape(HA_URL_BASE)}/auth/authorize(?:\?|$)", url))
+    return bool(re.match(rf"^{re.escape(HA_URL_BASE)}/auth/authorize\?response_type=code", url))
 
 
 def is_ha_page(url: str) -> bool:
@@ -195,31 +165,6 @@ def extract_evaluate_value(result: dict[str, Any]) -> Any:
     return runtime_result
 
 
-def query_display_is_on() -> bool | None:
-    """Return the current DPMS monitor state, or None if it can't be queried."""
-    try:
-        result = subprocess.run(
-            ["xset", "-q"],
-            text=True,
-            capture_output=True,
-            timeout=3,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        logger.warning("Timed out while querying display state")
-        return None
-    except (OSError, subprocess.SubprocessError) as exc:
-        logger.warning("Failed to query display state: %s", exc)
-        return None
-
-    if result.returncode != 0:
-        stderr = (result.stderr or "").strip()
-        logger.warning("Display state query failed (exit=%s): %s", result.returncode, stderr)
-        return None
-
-    return "Monitor is On" in (result.stdout or "")
-
-
 async def main() -> None:
     """Start watchdog loop."""
     controller = ChromiumController()
@@ -227,17 +172,15 @@ async def main() -> None:
     theme = normalize_theme(RAW_THEME, DARK_MODE)
     auto_login_script = build_auto_login_script()
     settings_script = build_settings_script(sidebar, theme)
-    sleep_url = get_sleep_url()
 
     logger.info(
-        "Chromium watchdog started: HA_URL=%s LOGIN_DELAY=%.1fs REFRESH=%ss SIDEBAR=%s THEME=%s AUTO_LOGIN=%s SLEEP_URL=%s",
+        "Chromium watchdog started: HA_URL=%s LOGIN_DELAY=%.1fs REFRESH=%ss SIDEBAR=%s THEME=%s AUTO_LOGIN=%s",
         HA_URL,
         LOGIN_DELAY_MS / 1000,
         BROWSER_REFRESH,
         sidebar,
         theme,
         HA_AUTO_LOGIN,
-        sleep_url,
     )
 
     last_url = ""
@@ -245,55 +188,14 @@ async def main() -> None:
     last_settings_url = ""
     last_reload_at = time.monotonic()
     reload_count = 0
-    last_display_state: bool | None = None
-    last_display_poll_at = 0.0
-    last_saved_url = ""
 
     while True:
         try:
-            now = time.monotonic()
-            if now - last_display_poll_at >= DISPLAY_STATE_POLL_INTERVAL:
-                display_is_on = query_display_is_on()
-                if display_is_on is not None and display_is_on != last_display_state:
-                    logger.info("Display power state: %s", "ON" if display_is_on else "OFF")
-                    last_display_state = display_is_on
-                last_display_poll_at = now
-
             target = await controller.get_page_target()
             url = str(target.get("url") or "")
             if url and url != last_url:
                 logger.info("URL: %s", url)
                 last_url = url
-
-            if last_display_state is False:
-                if not is_browser_sleeping():
-                    result = await controller.sleep()
-                    saved_url = str(result.get("saved_url") or get_saved_browser_url())
-                    if saved_url:
-                        last_saved_url = saved_url
-                    last_reload_at = time.monotonic()
-                    last_auth_url = ""
-                    last_settings_url = ""
-                    logger.info("Display is off; paused scene runtime on current page")
-                await asyncio.sleep(POLL_INTERVAL)
-                continue
-
-            if last_display_state is True and is_browser_sleeping():
-                result = await controller.wake()
-                resume_url = str(result.get("url") or get_saved_browser_url())
-                if resume_url:
-                    last_saved_url = resume_url
-                    last_url = resume_url
-                logger.info("Display is on; resumed scene runtime%s", f": {resume_url}" if resume_url else "")
-                last_reload_at = time.monotonic()
-                last_auth_url = ""
-                last_settings_url = ""
-                await asyncio.sleep(POLL_INTERVAL)
-                continue
-
-            if url and url not in {"about:blank", sleep_url} and url != last_saved_url:
-                remember_active_url(url)
-                last_saved_url = url
 
             if HA_AUTO_LOGIN and url and is_auth_page(url) and url != last_auth_url:
                 await controller.evaluate(auto_login_script)
@@ -317,7 +219,7 @@ async def main() -> None:
                     logger.warning("Failed to apply HA settings: %s", result)
                 last_settings_url = url
 
-            if BROWSER_REFRESH > 0 and url and url not in {"about:blank", sleep_url}:
+            if BROWSER_REFRESH > 0 and url and url != "about:blank":
                 now = time.monotonic()
                 if now - last_reload_at >= BROWSER_REFRESH:
                     reload_count += 1

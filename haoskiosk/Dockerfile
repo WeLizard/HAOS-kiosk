@@ -21,7 +21,6 @@ RUN apk update && apk add --no-cache \
      mesa-dri-gallium \
      mesa-egl \
      mesa-gles \
-     mesa-gl \
      libdrm \
 ### X utils
      xdotool \
@@ -85,7 +84,7 @@ COPY run.sh /
 RUN chmod a+x /run.sh
 
 COPY mouse_touch_inputs.py gesture_commands.json /
-COPY rest_server.py target_url.py /
+COPY rest_server.py /
 COPY browser_ctl.py chromium_watchdog.py /
 RUN pip install --no-cache-dir  --break-system-packages aiohttp #Required for rest_server.py
 

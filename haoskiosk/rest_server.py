@@ -69,7 +69,6 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, Awaitable, cast, Callable, Final, Literal, TypedDict, TypeVar
 from aiohttp import web  #type: ignore[import-not-found] #pylint: disable=import-error
-from target_url import is_valid_url, resolve_default_launch_url
 
 #-------------------------------------------------------------------------------
 __version__ = "1.3.0"
@@ -93,81 +92,7 @@ ALLOW_ALL_USER_COMMANDS: bool = os.getenv("ALLOW_ALL_USER_COMMANDS", "false").lo
 MAX_CONCURRENT_COMMANDS: int = 5
 SHORT_TIMEOUT: int = 5  # Timeout used for simple commands
 
-DEFAULT_LAUNCH_URL = resolve_default_launch_url()
-
-RUNTIME_INFO_HTML = """<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HAOS Kiosk Runtime</title>
-  <style>
-    :root {
-      color-scheme: light dark;
-      --bg: #0f1720;
-      --paper: #172230;
-      --paper-2: #213041;
-      --text: #e8eef4;
-      --muted: #9eb0c0;
-      --accent: #8fb8d6;
-      --line: rgba(255,255,255,0.12);
-      --ok: #80c48f;
-      --bad: #ef8e8e;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font: 14px/1.5 "Aptos", "Segoe UI", sans-serif;
-      color: var(--text);
-      background: linear-gradient(180deg, #0f1720 0%, #122032 100%);
-    }
-    .wrap {
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: 28px 20px 40px;
-      display: grid;
-      gap: 18px;
-    }
-    .panel {
-      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 18px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.18);
-    }
-    h1, h2 { margin: 0; line-height: 1.05; }
-    h1 { font-size: 28px; letter-spacing: -0.04em; }
-    h2 { font-size: 16px; margin-bottom: 10px; }
-    p { margin: 0; color: var(--muted); }
-    code {
-      background: rgba(255,255,255,0.06);
-      padding: 2px 6px;
-      border-radius: 6px;
-    }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <section class="panel">
-      <h1>HAOS Kiosk Runtime</h1>
-      <p>Этот add-on теперь отвечает только за browser/device runtime: Chromium, power, input, watchdog и REST automation.</p>
-    </section>
-    <section class="panel">
-      <h2>Что изменилось</h2>
-      <p>Scene host, scene editor и сохранение scene config вынесены в <strong>Kiosk Scene</strong>.</p>
-      <p>HAOS-kiosk больше не владеет renderer/scene конфигом и остаётся только kiosk runtime слоем.</p>
-    </section>
-    <section class="panel">
-      <h2>Куда идти дальше</h2>
-      <p>1. Открой add-on <code>Kiosk Scene</code> в Home Assistant.</p>
-      <p>2. Используй кнопки <code>Open Scene</code> и <code>Open Scene Editor</code>.</p>
-      <p>3. Там живут hosted runtime и канонический scene config для активного pack.</p>
-    </section>
-  </div>
-</body>
-</html>
-"""
+DEFAULT_LAUNCH_URL = f"{(os.getenv('HA_URL') or 'about:blank').rstrip('/')}/{os.getenv('HA_DASHBOARD') or ''}".strip('/')
 
 
 # --------------------------------------------------------------------------- #
@@ -224,6 +149,20 @@ SEP_REGEX: Final[re.Pattern[str]] = re.compile('(?:' + '|'.join(re.escape(op) fo
 DANGEROUS_SHELL_TOKENS: set[str] = { # Disallowed shell tokens if just expecting string arguments (used only in xset for now)
     ";", "&&", "||", "|", "&", "`", "$(", "${", ">", "<", "2>", "&>", "*?", "[",
 }
+
+VALID_URL_REGEX: Final[re.Pattern[str]] = re.compile(
+    r'^(https?://)?'                  # Optional scheme
+    r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # Domain
+    r'localhost|'                     # localhost
+    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IPv4
+    r'(?::\d{1,5})?'                  # Optional port (1-65535 max, but \d+ is fine)
+    r'(?:/?|[/?][^\s]*)?$',           # Path/query/fragment (allows #fragment, rejects spaces)
+    re.IGNORECASE
+)
+
+def is_valid_url(url: str) -> bool:
+    """Validate URL format (allows http://, https://, bare domain/IP, path, query, fragment)."""
+    return bool(url == 'about:blank' or VALID_URL_REGEX.fullmatch(url.strip()))
 
 # --------------------------------------------------------------------------- #
 # Setup
@@ -562,9 +501,7 @@ async def handle_display_on(data: Payload) -> dict[str, Any]:
     """Turn display on, optionally set blanking timeout. If 0, then disables timeout"""
     blank_timeout = data.get("timeout")
 
-    results = []
-
-    cmds = [["xset", "dpms", "force", "on"]]
+    cmds = [ ["xset", "dpms", "force", "on"] ]
     log_msg = ""
     if blank_timeout is None:
         pass
@@ -576,44 +513,16 @@ async def handle_display_on(data: Payload) -> dict[str, Any]:
         cmds += [ ["xset", "s", t], ["xset", "dpms", t, t, t] ]
         log_msg = f" Screen timeout: {blank_timeout}s"
 
-    for cmd in cmds:
-        results.append(
-            await execute_command(
-                cmd,
-                timeout=SHORT_TIMEOUT,
-                log_prefix="display_on",
-                allow_command=True,
-            )
-        )
-    results.append(
-        await execute_command(
-            ["python3", "/browser_ctl.py", "wake_display"],
-            timeout=SHORT_TIMEOUT,
-            log_prefix="display_on_browser",
-            allow_command=True,
-        )
-    )
+    results = [await execute_command(cmd, timeout=SHORT_TIMEOUT, log_prefix="display_on", allow_command=True) for cmd in cmds]
     logging.info("[display_on]%s", log_msg)
     return {"success": all(r["success"] for r in results), "results": results}
 
 @register_function("display_off")
 async def handle_display_off(data: Payload) -> dict[str, Any]:  # pylint: disable=unused-argument
     """Force display off immediately."""
-    results = [
-        await execute_command(
-            ["python3", "/browser_ctl.py", "sleep_display"],
-            timeout=SHORT_TIMEOUT,
-            log_prefix="display_off_browser",
-            allow_command=True,
-        ),
-        await execute_command(
-            ["xset", "dpms", "force", "off"],
-            timeout=SHORT_TIMEOUT,
-            log_prefix="display_off",
-            allow_command=True,
-        ),
-    ]
-    return {"success": all(r["success"] for r in results), "results": results}
+    result = await execute_command(["xset", "dpms", "force", "off"],
+                                   timeout=SHORT_TIMEOUT, log_prefix="display_off", allow_command=True)
+    return {"success": result["success"]}
 
 @register_function("xset", required=["args"], validators={"args": lambda x: isinstance(x, str) and bool(x.strip())})
 async def handle_xset(data: Payload) -> dict[str, Any]:
@@ -948,10 +857,6 @@ async def security_middleware(
     remote_ip = request.remote or request.headers.get("X-Forwarded-For", "unknown").split(",")[0].strip()
     logging.debug("[request] %s %s from %s", request.method, request.path, remote_ip)  # Log every request for debug
 
-    cmd_name = getattr(handler, "cmd_name", None)
-    if cmd_name is None:
-        return await handler(request)
-
     if REST_BEARER_TOKEN:
         auth_header = request.headers.get("Authorization", "")
         if auth_header != f"Bearer {REST_BEARER_TOKEN}":
@@ -960,6 +865,7 @@ async def security_middleware(
                 {"success": False, "error": "Invalid or missing REST_BEARER_TOKEN Authorization token"},
                 status=401,)
 
+    cmd_name = getattr(handler, "cmd_name")
     if cmd_name in PROTECTED_COMMANDS:
         if  remote_ip not in ("127.0.0.1", "::1", "localhost") and REST_BEARER_TOKEN is None:
             logging.warning("[security] Blocked protected REST command '%s' from non-localhost IP: %s", cmd_name, remote_ip)
@@ -977,18 +883,6 @@ async def create_app() -> web.Application:
     """Create and configure the aiohttp Application instance."""
 
     app = web.Application(middlewares=[security_middleware])
-
-    async def runtime_page(_: web.Request) -> web.Response:
-        return web.Response(text=RUNTIME_INFO_HTML, content_type="text/html")
-
-    async def editor_moved(_: web.Request) -> web.Response:
-        return web.json_response(
-            {
-                "success": False,
-                "error": "Scene host/editor moved to Kiosk Scene ingress (/scene/ and /scene-editor/).",
-            },
-            status=410,
-        )
 
     # Register routes for defined functions
     for fullname, func in FunctionRegistry.items():
@@ -1019,11 +913,7 @@ async def create_app() -> web.Application:
         else:
             app.router.add_post(route, make_handler)
 
-    # Runtime info page for ingress users. Scene hosting/editing now lives in Kiosk Scene.
-    app.router.add_get("/", runtime_page)
-    app.router.add_get("/editor/config", editor_moved)
-    app.router.add_post("/editor/config", editor_moved)
-
+    # === Special routes ===
     # Health check — always allowed, no auth, no protection
     app.router.add_get("/health", lambda _: web.json_response({"status": "ok"}))
 

@@ -13,10 +13,9 @@ configuration:
       Note: Typically should not need to be changed since browser runs on the
       'localhost' server
   ha_dashboard:
-    name: "HA Dashboard / Target URL"
+    name: "HA Dashboard"
     description: |
-      Path relative to "HA URL" or a full absolute URL for the display target.
-      Examples: `dashboard-display/0` or `http://localhost:48123/scene/`
+      Dashboard path (following "HA URL") or a full absolute target URL.
       [Default: ""]
   login_delay:
     name: "Login Delay"
@@ -30,7 +29,7 @@ configuration:
     name: "Browser Refresh"
     description: |
       Browser refresh interval in seconds; 0 for never [Default: 0]
-      Keep this at 0 for `Kiosk Scene` and other event-driven display pages.
+      Note: Recommended since on RPi, console messages can overwrite browser
   browser_engine:
     name: "Browser Engine"
     description: |
@@ -41,22 +40,6 @@ configuration:
     items:
       chromium: "Chromium"
       luakit: "Luakit"
-  chromium_gl_mode:
-    name: "Chromium GL Mode"
-    description: |
-      Select the Chromium OpenGL backend. Keep `Auto` for the normal desktop
-      Chromium path with no forced GPU overrides from the add-on. Use the
-      explicit modes only when you are intentionally debugging WebGL/GPU
-      behavior on the HDMI device.
-      [Default: Auto]
-    items:
-      auto: "Auto"
-      swiftshader: "SwiftShader (software)"
-      desktop: "Desktop GL"
-      egl: "EGL"
-      angle: "ANGLE"
-      gl: "ANGLE GL"
-      vulkan: "ANGLE Vulkan"
   screen_timeout:
     name: "Screen Timeout"
     description: "Time in seconds until screen blanks; 0 for never [Default: 0]"
@@ -137,12 +120,6 @@ configuration:
     name: "REST Port"
     description: |
       Listening port for REST API server (1024-49151) [Default: 8080]
-  ingress_runtime_port:
-    name: "Ingress Runtime Port"
-    description: |
-      Port used by Home Assistant ingress proxy target [Default: 8099].
-      Keep this aligned with add-on ingress metadata unless you are
-      intentionally overriding ingress routing.
   rest_authorization_token:
     name: "REST Authorization Token"
     description: |
@@ -159,12 +136,6 @@ configuration:
     description: |
       Regex of runnable user commands for the REST API and for use in
       gesture commands. See README for details
-  touch_debug_level:
-    name: "Touch Debug Level"
-    description: |
-      Debug verbosity for mouse/touch gesture parsing. Use 1 for normal logs,
-      2-3 to inspect real tap/swipe/pinch handling, and higher values only for
-      deep parser debugging. [Default: 1]
   vnc_server:
     name: "VNC Server Password"
     description: |

@@ -1,105 +1,15 @@
 # Changelog
 
-## v1.3.2-welizard.23 - March 2026
+## v1.3.2-welizard.33 - March 2026
 
-- Add explicit ANGLE backend choices to the add-on UI so HDMI troubleshooting
-  stays in `HAOS Kiosk Display` settings instead of ad-hoc command-line edits:
-  - add `gl` and `vulkan` to `chromium_gl_mode`
-  - map them to `--use-gl=angle --use-angle=<backend>`
-  - keep the existing `auto`, `swiftshader`, `desktop`, `egl`, and `angle`
-    behavior unchanged
-
-## v1.3.2-welizard.22 - March 2026
-
-- Let the explicit `angle` browser mode opt into WebGL instead of being
-  blocked before `Kiosk Scene` can even create a context:
-  - keep `angle` on the normal visible page path
-  - add `--ignore-gpu-blocklist` automatically for that mode
-  - leave other modes unchanged so the advanced GL selector still means what it says.
-
-## v1.3.2-welizard.21 - March 2026
-
-- Rebuild the `SwiftShader` browser mode around Chromium's supported software
-  WebGL fallback path instead of the earlier compositor workaround:
-  - map `swiftshader` to `--use-gl=angle --use-angle=swiftshader-webgl`
-  - add `--enable-unsafe-swiftshader` so trusted local WebGL content can still render
-  - stop forcing `--disable-gpu-compositing` in this mode so the kiosk page stays on the normal compositor path.
-
-## v1.3.2-welizard.20 - March 2026
-
-- Fix the `SwiftShader` browser mode so it uses Chromium's supported SwANGLE
-  path instead of the phased-out legacy `--use-gl=swiftshader` flag:
-  - map the add-on's `swiftshader` setting to `--use-gl=angle --use-angle=swiftshader`
-  - add `--disable-gpu-compositing` so the kiosk page composes in software while WebGL stays available for `Kiosk Scene`
-  - keep the user-facing HA setting unchanged while making the mode honest and installable.
-
-## v1.3.2-welizard.18 - March 2026
-
-- Add an explicit Chromium GL backend setting to the add-on configuration:
-  - expose `chromium_gl_mode` in the HA UI instead of relying on hidden environment overrides
-  - support `auto`, `swiftshader`, `desktop`, `egl`, and `angle`
-  - allow problematic HDMI/WebGL installs to switch to software GL without hardcoding display-specific flags in code.
-
-## v1.3.2-welizard.17 - March 2026
-
-- Remove startup hardcoding of the display target:
-  - `HAOS Kiosk Display` now resolves the browser target strictly from its own settings
-  - remove automatic rewrite from legacy `dashboard-display` URLs to `Kiosk Scene`
-- Add shared target URL helper used by `run.sh`, REST, gesture commands, and browser control:
-  - support relative dashboard paths and full absolute URLs from the same setting
-  - keep runtime/browser helpers consistent when restoring the configured display target.
-
-## v1.3.2-welizard.14 - March 2026
-
-- Fix black-screen Chromium crashes on real HDMI displays by removing the forced GPU/ANGLE path from defaults:
-  - stop forcing `--enable-gpu-rasterization`
-  - stop forcing `--ignore-gpu-blocklist`
-  - stop forcing `--use-gl=angle --use-angle=default`
-- Keep expert overrides available through environment variables when a specific GPU path is known to work.
-
-## v1.3.2-welizard.12 - March 2026
-
-- Remove scene-editor ownership from HAOS-kiosk:
-  - ingress root now explains that scene editing moved to OpenClaw Assistant
-  - legacy `/editor/config` endpoints return `410 Gone` with a migration hint
-  - browser/device runtime and REST automation stay in HAOS-kiosk.
-
-## v1.3.2-welizard.11 - March 2026
-
-- Fix persistent ingress `502` when runtime options and ingress metadata drift:
-  - add compatibility ingress listener auto-mode (`8080`/`8099`) so legacy installs keep working.
-  - keep existing REST-vs-ingress conflict self-heal when `rest_ip` is loopback.
-- Improve ingress startup diagnostics by logging compatibility listener selection.
-
-## v1.3.2-welizard.10 - March 2026
-
-- Fix persistent ingress `502 Bad Gateway` for stale/local installs by hardening runtime port resolution:
-  - correct internal fallback for `ingress_runtime_port` to `8099` in `run.sh`
-  - validate ingress/rest ports and auto-recover from invalid values.
-- Add startup self-heal when `rest_ip` is loopback and `rest_port == ingress_port`:
-  - auto-shift REST listener to a safe local port
-  - keep ingress editor listener reachable on `0.0.0.0:$INGRESS_PORT`.
-
-## v1.3.2-welizard.9 - March 2026
-
-- Fix Home Assistant Web UI `502 Bad Gateway` for `Open Web Interface` without hardcoding:
-  - set add-on metadata `ingress_port` back to a dedicated ingress listener (`8099`)
-  - set `ingress_runtime_port` default to `8099` to match metadata by default.
-- Start dedicated ingress REST/UI server on `0.0.0.0:$INGRESS_PORT` when ingress and REST ports differ,
-  while preserving regular REST automation endpoint on configured `rest_ip/rest_port`.
-- Harden editor ingress access checks by marking the root editor page route as protected editor traffic,
-  so ingress-authenticated flow and token rules are applied consistently.
-
-## v1.3.2-welizard.8 - March 2026
-
-- Fix dashboard target URL composition without hardcoding:
-  - support both relative `ha_dashboard` values (e.g. `dashboard-display/0`)
-  - and absolute URLs in `ha_dashboard` (e.g. `https://homeassistant.local/dashboard-display/0`)
-  - export a single runtime `HA_TARGET_URL` used consistently by browser launch and REST helpers.
-- Harden Chromium auto-login flow for newer HA auth UI variants:
-  - broaden username/password/submit selectors
-  - add form submit fallback when button selectors are missing
-  - relax auth-page detection to `/auth/authorize` with any query shape.
+- Roll back the Chromium runtime to the first stable Welizard baseline instead
+  of the later GL/ANGLE experimentation path.
+- Keep only the minimum follow-up fixes on top of that baseline:
+  browser engine selector, Chromium touch events, and optional HA auto-login.
+- Preserve support for absolute display target URLs so `Kiosk Scene` can still
+  publish a direct scene URL for the kiosk host.
+- Disable periodic browser refresh by default (`0`) to avoid unnecessary reload
+  churn on the HDMI display.
 
 ## v1.3.2-welizard.7 - March 2026
 
@@ -181,7 +91,6 @@
   add-on in the store instead of dropping it as invalid
 - Point repository metadata and installation docs to the canonical
   `WeLizard/HAOS-kiosk` repository
-
 ## v1.3.1-welizard.5 - March 2026
 
 - Add a clear `Browser Engine` selector to the add-on configuration UI
@@ -192,7 +101,6 @@
 - Add configurable `touch_debug_level` so touch and gesture parsing can be
   diagnosed on real hardware like the Mellow FlyHDMI7 without rebuilding the
   container for each test
-
 ## v1.3.1-welizard.3 - March 2026
 
 - Explicitly enable Chromium touch events for kiosk sessions

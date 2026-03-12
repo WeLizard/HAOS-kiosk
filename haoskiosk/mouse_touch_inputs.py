@@ -369,7 +369,6 @@ from functools import wraps
 from typing import Any, cast, Callable, ClassVar, Final, Iterator, NotRequired, Protocol, Self, Sequence, Type, TypeAlias, TypedDict, TypeVar
 from Xlib import display                  #type: ignore[import-untyped] #pylint: disable=import-error
 from Xlib.xobject.drawable import Window  #type: ignore[import-untyped] #pylint: disable=import-error
-from target_url import is_valid_url, resolve_default_launch_url
 #-------------------------------------------------------------------------------
 __version__ = "1.3.0"
 __author__ = "Jeff Kosowsky"
@@ -380,7 +379,7 @@ __copyright__ = "Copyright 2025 Jeff Kosowsky"
 XINPUT_RESTART_DELAY: int     = 5    # Seconds before restarting xinput after crash
 CMD_TIMEOUT: int | None       = 30   # Seconds before spawned action command timesout or None if no timeout
 GESTURE_CMDS_FILES: list[str] = ["/data/options.json", "gesture_commands.json"]
-DEFAULT_LAUNCH_URL = resolve_default_launch_url()
+DEFAULT_LAUNCH_URL = f"{(os.getenv('HA_URL') or 'about:blank').rstrip('/')}/{os.getenv('HA_DASHBOARD') or ''}".strip('/')
 
 #-------------------------------------------------------------------------------
 ## Initialization
@@ -511,6 +510,20 @@ SAFE_REDIRECT_REGEX: Final[re.Pattern[str]] = re.compile(
 SEPARATORS: frozenset[str] = frozenset({ "&&", "||", ";", "|", "&", "$(", "${", "`", "(", "{", "[[", "((" })
 SEP_REGEX: Final[re.Pattern[str]] = re.compile('(?:' + '|'.join(re.escape(op) for op in sorted(SEPARATORS, key=len, reverse=True)) + ')')
 
+VALID_URL_REGEX: Final[re.Pattern[str]] = re.compile(
+    r'^(https?://)?'                  # Optional scheme
+    r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # Domain
+    r'localhost|'                     # localhost
+    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IPv4
+    r'(?::\d{1,5})?'                  # Optional port (1-65535 max, but \d+ is fine)
+    r'(?:/?|[/?][^\s]*)?$',           # Path/query/fragment (allows #fragment, rejects spaces)
+    re.IGNORECASE
+)
+
+def is_valid_url(url: str) -> bool:
+    """Validate URL format (allows http://, https://, bare domain/IP, path, query, fragment)."""
+    return bool(url == 'about:blank' or VALID_URL_REGEX.fullmatch(url.strip()))
+
 #-------------------------------------------------------------------------------
 #### Globals
 GESTURE_SEP = "_"
@@ -639,7 +652,7 @@ def handle_refresh_browser(timeout: int | None = None, *, _cmd_name: str = "unkn
 
 @register_function("launch_url", optional=["url"])
 def handle_launch_url(url: str = DEFAULT_LAUNCH_URL, timeout: int | None = None, *, _cmd_name: str = "unknown") -> None:
-    """Launch a valid URL or fall back to the configured display target."""
+    """Launch (valid) URL if given otherwise HA_URL/HA_DASHBOARD if exists otherwise 'about:blank'"""
     if not isinstance(url, str):
         raise ValueError(f"{_cmd_name}: URL must be str, got {type(url).__name__}")
     if not url.strip():
@@ -658,7 +671,7 @@ def handle_display_on(blank_timeout: int | None = None, timeout: int | None = No
     """Turn display on, optionally set blanking timeout. If 0, then disables timeout"""
 
     descr = _cmd_name
-    cmds = [["xset", "dpms", "force", "on"]]
+    cmds = [ ["xset", "dpms", "force", "on"] ]
     if blank_timeout is not None:
         if blank_timeout == 0:
             cmds += [ ["xset", "s", "off"], ["xset", "-dpms"] ]
@@ -667,16 +680,14 @@ def handle_display_on(blank_timeout: int | None = None, timeout: int | None = No
             t = str(blank_timeout)
             cmds += [ ["xset", "s", t], ["xset", "dpms", t, t, t] ]
             descr += f": blanking set to {blank_timeout} seconds"
-    cmds.append(["python3", "/browser_ctl.py", "wake_display"])
     for cmd in cmds:
         _run_subprocess(cmd, shell=False, timeout=timeout, description=descr)
 
 @register_function("display_off")
 def handle_display_off(timeout: int | None = None, *, _cmd_name: str = "unknown") -> None:
     """Force display off immediately."""
-    cmds = [["python3", "/browser_ctl.py", "sleep_display"], ["xset", "dpms", "force", "off"]]
-    for cmd in cmds:
-        _run_subprocess(cmd, timeout=timeout, description=_cmd_name)
+    cmd = ["xset", "dpms", "force", "off"]
+    _run_subprocess(cmd, timeout=timeout, description=_cmd_name)
 
 SCREENSHOT_DIR: str = "/media/screenshots"  # Directory to store screenshots
 @register_function("screenshot", optional=["filename", "quality", "delay"],

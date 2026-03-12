@@ -12,86 +12,49 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
-import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType  # type: ignore[import-not-found]
-from target_url import normalize_url, resolve_default_launch_url
 
 
 BROWSER_ENGINE = (os.getenv("BROWSER_ENGINE") or "chromium").strip().lower()
 CHROMIUM_DEVTOOLS_PORT = int(os.getenv("CHROMIUM_DEVTOOLS_PORT", "9222"))
 CHROMIUM_DEVTOOLS_HOST = os.getenv("CHROMIUM_DEVTOOLS_HOST", "127.0.0.1")
+DEFAULT_LAUNCH_URL = (
+    f"{(os.getenv('HA_URL') or 'about:blank').rstrip('/')}/{os.getenv('HA_DASHBOARD') or ''}"
+).strip("/") or "about:blank"
 CLIENT_TIMEOUT = ClientTimeout(total=5)
-DEFAULT_LAUNCH_URL = resolve_default_launch_url()
-BROWSER_STATE_DIR = os.getenv("BROWSER_STATE_DIR", "/run/haos-kiosk")
-BROWSER_STATE_FILE = os.path.join(BROWSER_STATE_DIR, "browser_state.json")
-DISPLAY_SLEEP_URL = (os.getenv("DISPLAY_SLEEP_URL") or "about:blank").strip() or "about:blank"
-DISPLAY_POWER_OFF_EVENT = "kiosk-display-off"
-DISPLAY_POWER_ON_EVENT = "kiosk-display-on"
+
+VALID_URL_REGEX = re.compile(
+    r"^(https?://)?"
+    r"(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,63}\.?|"
+    r"localhost|"
+    r"\d{1,3}(?:\.\d{1,3}){3})"
+    r"(?::\d{1,5})?"
+    r"(?:/?|[/?][^\s]*)?$",
+    re.IGNORECASE,
+)
 
 
-def get_sleep_url() -> str:
-    """Return the URL used while the display is sleeping."""
-    return normalize_url(DISPLAY_SLEEP_URL)
+def is_valid_url(url: str) -> bool:
+    """Validate URL format (allows http://, https://, bare domain/IP, path, query, fragment)."""
+    return bool(url == "about:blank" or VALID_URL_REGEX.fullmatch(url.strip()))
 
 
-def load_browser_state() -> dict[str, Any]:
-    """Return persisted browser runtime state."""
-    try:
-        with open(BROWSER_STATE_FILE, encoding="utf-8") as handle:
-            payload = json.load(handle)
-    except FileNotFoundError:
-        return {}
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return payload if isinstance(payload, dict) else {}
-
-
-def save_browser_state(state: dict[str, Any]) -> dict[str, Any]:
-    """Persist browser runtime state atomically."""
-    os.makedirs(BROWSER_STATE_DIR, exist_ok=True)
-    payload = dict(state)
-    payload["updated_at"] = int(time.time())
-    temp_path = BROWSER_STATE_FILE + ".tmp"
-    with open(temp_path, "w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, sort_keys=True)
-    os.replace(temp_path, BROWSER_STATE_FILE)
-    return payload
-
-
-def update_browser_state(**changes: Any) -> dict[str, Any]:
-    """Merge state updates into persisted browser runtime state."""
-    state = load_browser_state()
-    state.update(changes)
-    return save_browser_state(state)
-
-
-def is_browser_sleeping() -> bool:
-    """Return True when browser work should stay suspended."""
-    return bool(load_browser_state().get("display_sleeping"))
-
-
-def get_saved_browser_url(fallback: str | None = None) -> str:
-    """Return the last active browser URL, falling back to the configured default."""
-    state = load_browser_state()
-    candidate = state.get("saved_url")
-    if isinstance(candidate, str) and candidate.strip():
-        return normalize_url(candidate)
-    return normalize_url(fallback or DEFAULT_LAUNCH_URL)
-
-
-def remember_active_url(url: str) -> dict[str, Any]:
-    """Persist the currently active URL as the next wake target."""
-    normalized = normalize_url(url)
-    return update_browser_state(
-        current_url=normalized,
-        saved_url=normalized,
-        display_sleeping=False,
-    )
+def normalize_url(url: str | None) -> str:
+    """Return a browser-safe URL."""
+    candidate = (url or DEFAULT_LAUNCH_URL or "about:blank").strip()
+    if not candidate:
+        candidate = DEFAULT_LAUNCH_URL or "about:blank"
+    if candidate != "about:blank" and not candidate.startswith(("http://", "https://")):
+        candidate = "http://" + candidate
+    if not is_valid_url(candidate):
+        raise ValueError(f"Invalid URL format: {candidate}")
+    return candidate
 
 
 def _run_luakit_command(args: list[str]) -> None:
@@ -272,83 +235,11 @@ class ChromiumController:
 
         return await self._with_page(worker)
 
-    async def broadcast_display_power(self, display_on: bool) -> dict[str, Any]:
-        """Broadcast display power state to the active page."""
-        payload = {
-            "type": DISPLAY_POWER_ON_EVENT if display_on else DISPLAY_POWER_OFF_EVENT,
-            "displayOn": bool(display_on),
-            "source": "haos-kiosk",
-            "timestamp": int(time.time() * 1000),
-        }
-        expression = f"""
-(() => {{
-  const payload = {json.dumps(payload, ensure_ascii=False)};
-  window.postMessage(payload, "*");
-  return payload;
-}})()
-""".strip()
-        return await self.evaluate(expression, return_by_value=True)
-
-    async def sleep(self, *, sleep_url: str | None = None) -> dict[str, Any]:
-        """Pause the active page and persist the wake target without navigating away."""
-        target = await self.get_page_target()
-        current_url = str(target.get("url") or "")
-        state = load_browser_state()
-
-        saved_url = state.get("saved_url")
-        if current_url and current_url not in {"about:blank", normalize_url(sleep_url or get_sleep_url())}:
-            saved_url = normalize_url(current_url)
-        if not isinstance(saved_url, str) or not saved_url.strip():
-            saved_url = normalize_url(DEFAULT_LAUNCH_URL)
-
-        update_browser_state(
-            current_url=normalize_url(current_url or saved_url),
-            saved_url=saved_url,
-            display_sleeping=True,
-        )
-        result = await self.broadcast_display_power(False)
-        return {
-            "success": True,
-            "sleeping": True,
-            "saved_url": saved_url,
-            "current_url": normalize_url(current_url or saved_url),
-            "result": result,
-        }
-
-    async def wake(self, *, target_url: str | None = None) -> dict[str, Any]:
-        """Resume the current page or navigate to a deferred wake target."""
-        normalized_target_url = normalize_url(target_url or get_saved_browser_url(DEFAULT_LAUNCH_URL))
-        target = await self.get_page_target()
-        current_url = str(target.get("url") or "")
-
-        update_browser_state(
-            current_url=normalized_target_url,
-            saved_url=normalized_target_url,
-            display_sleeping=False,
-        )
-
-        if current_url == normalized_target_url:
-            result = await self.broadcast_display_power(True)
-            return {
-                "success": True,
-                "sleeping": False,
-                "url": normalized_target_url,
-                "result": result,
-            }
-
-        result = await self.navigate(normalized_target_url)
-        return {
-            "success": True,
-            "sleeping": False,
-            "url": normalized_target_url,
-            "result": result,
-        }
-
 
 async def run_browser_action(action: str, url: str | None = None) -> dict[str, Any]:
     """Dispatch browser control action based on configured engine."""
     if BROWSER_ENGINE == "luakit":
-        normalized = normalize_url(url, DEFAULT_LAUNCH_URL) if action == "launch_url" else None
+        normalized = normalize_url(url) if action == "launch_url" else None
         if action == "launch_url":
             _run_luakit_command(["luakit", "-n", normalized or DEFAULT_LAUNCH_URL])
         elif action == "refresh_browser":
@@ -363,45 +254,22 @@ async def run_browser_action(action: str, url: str | None = None) -> dict[str, A
 
     controller = ChromiumController()
     if action == "launch_url":
-        normalized = normalize_url(url or DEFAULT_LAUNCH_URL)
-        if is_browser_sleeping():
-            update_browser_state(saved_url=normalized)
-            return {
-                "success": True,
-                "engine": "chromium",
-                "action": action,
-                "sleeping": True,
-                "deferred": True,
-                "url": normalized,
-            }
-        result = await controller.navigate(normalized)
-        remember_active_url(normalized)
-        return result
+        return await controller.navigate(url or DEFAULT_LAUNCH_URL)
     if action == "refresh_browser":
-        if is_browser_sleeping():
-            return {"success": True, "sleeping": True, "skipped": True}
-        return await controller.reload(ignore_cache=True)
+        return await controller.reload(ignore_cache=False)
     if action == "back":
-        if is_browser_sleeping():
-            return {"success": True, "sleeping": True, "skipped": True}
         return await controller.go_back()
     if action == "forward":
-        if is_browser_sleeping():
-            return {"success": True, "sleeping": True, "skipped": True}
         return await controller.go_forward()
     if action == "page_info":
         return await controller.get_page_target()
-    if action == "sleep_display":
-        return await controller.sleep()
-    if action == "wake_display":
-        return await controller.wake(target_url=url)
     raise RuntimeError(f"Unknown browser action: {action}")
 
 
 async def _main_async(argv: list[str]) -> int:
     if len(argv) < 2:
         print(
-            "Usage: browser_ctl.py <launch_url|refresh_browser|back|forward|page_info|sleep_display|wake_display> [url]",
+            "Usage: browser_ctl.py <launch_url|refresh_browser|back|forward|page_info> [url]",
             file=sys.stderr,
         )
         return 2
