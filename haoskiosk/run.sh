@@ -132,7 +132,7 @@ load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
 load_config_var BROWSER_REFRESH 0
 load_config_var BROWSER_ENGINE "chromium"
-load_config_var CHROMIUM_PROFILE "legacy_neiri"
+load_config_var CHROMIUM_PROFILE "recovery_baseline"
 load_config_var CHROMIUM_USE_GL "auto"
 load_config_var CHROMIUM_ANGLE_BACKEND "default"
 load_config_var CHROMIUM_ENABLE_GPU_RASTERIZATION false
@@ -166,6 +166,18 @@ load_config_var VNC_SERVER ""  1 #Mask password in log
 
 apply_chromium_profile() {
     case "${CHROMIUM_PROFILE,,}" in
+        recovery_baseline)
+            # Reproduce the early c6378e1 Chromium launch stack as closely as
+            # possible while keeping current target URL resolution.
+            CHROMIUM_USE_GL="angle"
+            CHROMIUM_ANGLE_BACKEND="default"
+            CHROMIUM_ENABLE_GPU_RASTERIZATION=true
+            CHROMIUM_IGNORE_GPU_BLOCKLIST=true
+            CHROMIUM_DISABLE_SKIA_RENDERER=false
+            CHROMIUM_DISABLE_GPU_COMPOSITING=false
+            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
+            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
+            ;;
         legacy_neiri)
             CHROMIUM_USE_GL="angle"
             # Chromium 144 on this HDMI path keeps drifting into a broken
@@ -213,32 +225,9 @@ apply_chromium_profile() {
 apply_chromium_profile
 bashio::log.info "Effective Chromium profile: profile=$CHROMIUM_PROFILE use_gl=$CHROMIUM_USE_GL angle_backend=$CHROMIUM_ANGLE_BACKEND enable_gpu_rasterization=$CHROMIUM_ENABLE_GPU_RASTERIZATION ignore_gpu_blocklist=$CHROMIUM_IGNORE_GPU_BLOCKLIST disable_skia=$CHROMIUM_DISABLE_SKIA_RENDERER disable_gpu_compositing=$CHROMIUM_DISABLE_GPU_COMPOSITING disable_oop_rasterization=$CHROMIUM_DISABLE_OOP_RASTERIZATION unsafe_swiftshader=$CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER"
 
-compose_target_url() {
-    local base_url="$1"
-    local dashboard_path="$2"
-
-    base_url="$(echo "$base_url" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-    dashboard_path="$(echo "$dashboard_path" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-
-    if [[ "$dashboard_path" =~ ^https?:// ]]; then
-        printf '%s' "$dashboard_path"
-        return
-    fi
-
-    if [ -z "$base_url" ]; then
-        base_url="about:blank"
-    fi
-
-    if [ -z "$dashboard_path" ]; then
-        printf '%s' "$base_url"
-        return
-    fi
-
-    printf '%s/%s' "${base_url%/}" "${dashboard_path#/}"
-}
-
-HA_TARGET_URL="$(compose_target_url "$HA_URL" "$HA_DASHBOARD")"
+HA_TARGET_URL="$(python3 /target_url.py default 2>/dev/null || true)"
 if [ -z "$HA_TARGET_URL" ]; then
+    bashio::log.warning "Failed to resolve HA target URL via target_url.py; falling back to about:blank"
     HA_TARGET_URL="about:blank"
 fi
 export HA_TARGET_URL
@@ -276,6 +265,10 @@ export CHROMIUM_PROFILE_DIR
 export CHROMIUM_PROFILE
 export CHROMIUM_USE_GL
 export CHROMIUM_ANGLE_BACKEND
+
+is_recovery_baseline_profile() {
+    [ "${CHROMIUM_PROFILE,,}" = "recovery_baseline" ]
+}
 
 append_chromium_flag_if_true() {
     local enabled="$1"
@@ -329,6 +322,28 @@ resolve_browser_binary() {
                 --ozone-platform=x11
                 --touch-events=enabled
             )
+
+            if is_recovery_baseline_profile; then
+                disabled_features+=(
+                    Translate
+                    TranslateUI
+                    AutofillServerCommunication
+                    PasswordManagerOnboarding
+                    PasswordCheck
+                    PasswordManagerRedesign
+                    OptimizationGuideModelDownloading
+                )
+                BROWSER_FLAGS+=(
+                    --disable-save-password-bubble
+                    --disable-sync
+                    --disable-search-engine-choice-screen
+                    --disable-application-cache
+                    --aggressive-cache-discard
+                    --disk-cache-dir=/tmp/haoskiosk-cache
+                    --disk-cache-size=1
+                    --media-cache-size=1
+                )
+            fi
 
             append_chromium_flag_if_true "$CHROMIUM_ENABLE_GPU_RASTERIZATION" --enable-gpu-rasterization
             append_chromium_flag_if_true "$CHROMIUM_IGNORE_GPU_BLOCKLIST" --ignore-gpu-blocklist
@@ -395,6 +410,77 @@ resolve_browser_binary() {
 
 browser_process_running() {
     pgrep -f -- "$BROWSER_PROCESS_MATCH" > /dev/null 2>&1
+}
+
+clear_chromium_runtime_cache() {
+    [ "$BROWSER_ENGINE" = "chromium" ] || return 0
+    is_recovery_baseline_profile || return 0
+
+    mkdir -p "$CHROMIUM_PROFILE_DIR"
+
+    local cache_paths=(
+        /tmp/haoskiosk-cache
+        "$CHROMIUM_PROFILE_DIR/Cache"
+        "$CHROMIUM_PROFILE_DIR/Code Cache"
+        "$CHROMIUM_PROFILE_DIR/GPUCache"
+        "$CHROMIUM_PROFILE_DIR/DawnCache"
+        "$CHROMIUM_PROFILE_DIR/GrShaderCache"
+        "$CHROMIUM_PROFILE_DIR/ShaderCache"
+        "$CHROMIUM_PROFILE_DIR/Default/Cache"
+        "$CHROMIUM_PROFILE_DIR/Default/Code Cache"
+        "$CHROMIUM_PROFILE_DIR/Default/GPUCache"
+        "$CHROMIUM_PROFILE_DIR/Default/DawnCache"
+        "$CHROMIUM_PROFILE_DIR/Default/GrShaderCache"
+        "$CHROMIUM_PROFILE_DIR/Default/Service Worker"
+    )
+
+    local cache_path
+    for cache_path in "${cache_paths[@]}"; do
+        rm -rf "$cache_path"
+    done
+}
+
+seed_chromium_preferences() {
+    [ "$BROWSER_ENGINE" = "chromium" ] || return 0
+    is_recovery_baseline_profile || return 0
+
+    local default_dir="$CHROMIUM_PROFILE_DIR/Default"
+    mkdir -p "$default_dir"
+
+    cat > "$default_dir/Preferences" <<'EOF'
+{
+  "autofill": {
+    "enabled": false
+  },
+  "browser": {
+    "check_default_browser": false,
+    "has_seen_welcome_page": true
+  },
+  "credentials_enable_service": false,
+  "distribution": {
+    "import_bookmarks": false,
+    "import_history": false,
+    "import_search_engine": false,
+    "make_chrome_default_for_user": false,
+    "skip_first_run_ui": true
+  },
+  "profile": {
+    "default_content_setting_values": {
+      "notifications": 2
+    },
+    "password_manager_enabled": false
+  },
+  "safebrowsing": {
+    "enabled": false
+  },
+  "sync_promo": {
+    "show_on_first_run_allowed": false
+  },
+  "translate": {
+    "enabled": false
+  }
+}
+EOF
 }
 
 resolve_browser_binary
@@ -925,6 +1011,8 @@ if [ "$DEBUG_MODE" != true ]; then
     if [ "$BROWSER_ENGINE" = "chromium" ]; then
         mkdir -p "$CHROMIUM_PROFILE_DIR"
         rm -f "$CHROMIUM_PROFILE_DIR"/Singleton*
+        clear_chromium_runtime_cache
+        seed_chromium_preferences
     fi
 
     "$BROWSER" "${BROWSER_FLAGS[@]}" "$HA_TARGET_URL" &

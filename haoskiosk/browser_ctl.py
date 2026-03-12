@@ -227,7 +227,7 @@ async def run_browser_action(action: str, url: str | None = None) -> dict[str, A
     if action == "launch_url":
         return await controller.navigate(url or DEFAULT_LAUNCH_URL)
     if action == "refresh_browser":
-        return await controller.reload(ignore_cache=False)
+        return await controller.reload(ignore_cache=True)
     if action == "back":
         return await controller.go_back()
     if action == "forward":
