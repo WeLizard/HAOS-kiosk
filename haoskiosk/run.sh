@@ -209,6 +209,12 @@ resolve_chromium_gl_flags() {
             # GPU strategy instead of forcing ANGLE, SwiftShader or blocklist
             # bypasses from the add-on.  Explicit modes remain available for
             # targeted debugging, but the default path must stay boring.
+            CHROMIUM_USE_GL_FLAG=""
+            CHROMIUM_USE_ANGLE_FLAG=""
+            CHROMIUM_DISABLE_GPU_COMPOSITING=0
+            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=0
+            CHROMIUM_FORCE_GPU_RASTERIZATION=0
+            CHROMIUM_EFFECTIVE_IGNORE_GPU_BLOCKLIST=0
             bashio::log.info "Auto GPU: using Chromium default GL/compositor profile"
             ;;
         swiftshader)
