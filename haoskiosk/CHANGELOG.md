@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2-welizard.49 - March 2026
+
+- Fix Chromium profile configuration so HA UI options are actually honored.
+- `run.sh` had pre-initialized `CHROMIUM_PROFILE`, `CHROMIUM_USE_GL`, and
+  `CHROMIUM_ANGLE_BACKEND` before reading add-on config, which forced the
+  runtime back onto `legacy_neiri` even when the UI showed `desktop_glx`.
+
 ## v1.3.2-welizard.48 - March 2026
 
 - Add a dedicated `Desktop GLX` Chromium profile and make it the default

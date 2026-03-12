@@ -87,9 +87,6 @@ declare -a BROWSER_FLAGS=()
 BROWSER_PROCESS_MATCH=""
 CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
 CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
-CHROMIUM_PROFILE="${CHROMIUM_PROFILE:-legacy_neiri}"
-CHROMIUM_USE_GL="${CHROMIUM_USE_GL:-auto}"
-CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-default}"
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
