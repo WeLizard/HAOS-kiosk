@@ -3,7 +3,7 @@ name: "HAOS Kiosk Display (Welizard Chromium Fork)"
 description: |
   Chromium-focused Welizard fork of the original HAOS Kiosk Display by
   Jeff Kosowsky for local HAOS dashboard screens and touch displays.
-version: "1.3.2-welizard.47"
+version: "1.3.2-welizard.48"
 slug: "haoskiosk"
 
 arch:
@@ -73,7 +73,7 @@ options:
   zoom_level: 100
   browser_refresh: 0
   browser_engine: "chromium"
-  chromium_profile: "legacy_neiri"
+  chromium_profile: "desktop_glx"
   chromium_use_gl: "auto"
   chromium_angle_backend: "default"
   chromium_enable_gpu_rasterization: false
@@ -123,7 +123,7 @@ schema:
   zoom_level: int(10,1000)
   browser_refresh: int(0,)
   browser_engine: list(chromium|luakit)
-  chromium_profile: list(legacy_neiri|minimal|custom)
+  chromium_profile: list(legacy_neiri|desktop_glx|minimal|custom)
   chromium_use_gl: list(auto|desktop|egl|angle|swiftshader)
   chromium_angle_backend: list(default|gl|gles|vulkan|swiftshader|swiftshader-webgl)
   chromium_enable_gpu_rasterization: bool

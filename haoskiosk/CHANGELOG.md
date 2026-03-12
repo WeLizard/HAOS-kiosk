@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.2-welizard.48 - March 2026
+
+- Add a dedicated `Desktop GLX` Chromium profile and make it the default
+  experiment for the HDMI path.
+- This bypasses ANGLE entirely and forces Chromium onto native X11 desktop
+  OpenGL (`--use-gl=desktop`) without the legacy GPU overrides.
+- Keep `Legacy Neiri` intact so the last restored ANGLE+GL profile is still
+  available for comparison.
+
 ## v1.3.2-welizard.47 - March 2026
 
 - Restore `mesa-gl` in the add-on image. The last known working Chromium

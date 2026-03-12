@@ -45,11 +45,13 @@ configuration:
     description: |
       Pick a tested Chromium flag profile. `Legacy Neiri` reproduces the
       older hardcoded launch used by the previously working direct Neiri
-      runtime. `Minimal X11` keeps Chromium close to a plain browser. Use
-      `Custom` only when you explicitly want to control the advanced flags
-      below. [Default: Legacy Neiri]
+      runtime. `Desktop GLX` bypasses ANGLE and asks Chromium to use native
+      desktop OpenGL on X11 directly. `Minimal X11` keeps Chromium close to a
+      plain browser. Use `Custom` only when you explicitly want to control the
+      advanced flags below. [Default: Desktop GLX]
     items:
       legacy_neiri: "Legacy Neiri"
+      desktop_glx: "Desktop GLX"
       minimal: "Minimal X11"
       custom: "Custom"
   chromium_use_gl:

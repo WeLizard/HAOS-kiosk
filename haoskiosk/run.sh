@@ -181,6 +181,19 @@ apply_chromium_profile() {
             CHROMIUM_DISABLE_OOP_RASTERIZATION=false
             CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
             ;;
+        desktop_glx)
+            # Bypass ANGLE entirely and ask Chromium to use the native X11
+            # desktop OpenGL path directly. This is the narrow follow-up to
+            # the confirmed .46 ANGLE failure chain.
+            CHROMIUM_USE_GL="desktop"
+            CHROMIUM_ANGLE_BACKEND="default"
+            CHROMIUM_ENABLE_GPU_RASTERIZATION=false
+            CHROMIUM_IGNORE_GPU_BLOCKLIST=false
+            CHROMIUM_DISABLE_SKIA_RENDERER=false
+            CHROMIUM_DISABLE_GPU_COMPOSITING=false
+            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
+            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
+            ;;
         minimal)
             CHROMIUM_USE_GL="auto"
             CHROMIUM_ANGLE_BACKEND="default"
