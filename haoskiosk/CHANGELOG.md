@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.2-welizard.41 - March 2026
+
+- Drop the `.40` `swiftshader-webgl` fallback and all temporary Chromium GPU
+  overrides from the main display path.
+- Run Chromium on the simplest X11 kiosk profile again:
+  no `UseSkiaRenderer` disable, no `--disable-gpu-compositing`, no
+  `--disable-oop-rasterization`, and no forced `ANGLE`/`SwiftShader` flags.
+- This is the first clean verification step after confirming the scene itself
+  already renders on HDMI and the remaining problem is the avatar WebGL path.
+
 ## v1.3.2-welizard.40 - March 2026
 
 - Replace the temporary `.39` `--disable-webgl` phase with Chromium's official

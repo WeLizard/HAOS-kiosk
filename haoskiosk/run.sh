@@ -233,12 +233,6 @@ resolve_browser_binary() {
                 --no-default-browser-check
                 --disable-session-crashed-bubble
                 --disable-infobars
-                --disable-features=UseSkiaRenderer
-                --disable-gpu-compositing
-                --disable-oop-rasterization
-                --use-gl=angle
-                --use-angle=swiftshader-webgl
-                --enable-unsafe-swiftshader
                 --password-store=basic
                 --remote-debugging-address=127.0.0.1
                 --remote-debugging-port="$CHROMIUM_DEVTOOLS_PORT"
@@ -274,10 +268,8 @@ if [ "$BROWSER_ENGINE" = "chromium" ]; then
     if [ -n "$chromium_version" ]; then
         bashio::log.info "Chromium version: $chromium_version"
     fi
-    # Keep the real display on Chromium's default GPU path. Forcing rasterization
-    # and blocklist overrides made the HDMI runtime less stable on the target box.
-    # The only retained override disables OOP rasterization because the current
-    # Alpine Chromium build crashes inside SharedImage/RasterDecoder on that path.
+    # Keep the real display on Chromium's native X11 GPU path unless a later
+    # experiment proves a single explicit override is required on the target box.
     bashio::log.info "Chromium launch flags: ${BROWSER_FLAGS[*]}"
 fi
 
