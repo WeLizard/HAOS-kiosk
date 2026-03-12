@@ -40,6 +40,50 @@ configuration:
     items:
       chromium: "Chromium"
       luakit: "Luakit"
+  chromium_use_gl:
+    name: "Chromium GL Mode"
+    description: |
+      Advanced Chromium `--use-gl` override. Leave on `Auto` unless you are
+      deliberately testing a graphics path. [Default: Auto]
+    items:
+      auto: "Auto"
+      desktop: "Desktop GL"
+      egl: "EGL"
+      angle: "ANGLE"
+      swiftshader: "SwiftShader"
+  chromium_angle_backend:
+    name: "Chromium ANGLE Backend"
+    description: |
+      Advanced Chromium `--use-angle` backend. Used only when `Chromium GL
+      Mode` is set to `ANGLE`. [Default: default]
+    items:
+      default: "Default"
+      gl: "OpenGL"
+      gles: "OpenGL ES"
+      vulkan: "Vulkan"
+      swiftshader: "SwiftShader"
+      swiftshader-webgl: "SwiftShader WebGL"
+  chromium_disable_skia_renderer:
+    name: "Disable Skia Renderer"
+    description: |
+      Add Chromium flag `--disable-features=UseSkiaRenderer`. Keep disabled
+      unless you are testing an older compositor path. [Default: False]
+  chromium_disable_gpu_compositing:
+    name: "Disable GPU Compositing"
+    description: |
+      Add Chromium flag `--disable-gpu-compositing`. Advanced testing only.
+      [Default: False]
+  chromium_disable_oop_rasterization:
+    name: "Disable OOP Rasterization"
+    description: |
+      Add Chromium flag `--disable-oop-rasterization`. Advanced testing only.
+      [Default: False]
+  chromium_enable_unsafe_swiftshader:
+    name: "Enable Unsafe SwiftShader"
+    description: |
+      Add Chromium flag `--enable-unsafe-swiftshader`. This only applies to
+      `ANGLE` + `SwiftShader WebGL` and should remain off unless you are
+      explicitly testing that fallback. [Default: False]
   screen_timeout:
     name: "Screen Timeout"
     description: "Time in seconds until screen blanks; 0 for never [Default: 0]"

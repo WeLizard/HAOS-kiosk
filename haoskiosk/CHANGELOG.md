@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.3.2-welizard.42 - March 2026
+
+- Expose Chromium graphics overrides in the add-on configuration instead of
+  hardcoding them in `run.sh`.
+- Added advanced settings for:
+  - `Chromium GL Mode`
+  - `Chromium ANGLE Backend`
+  - `Disable Skia Renderer`
+  - `Disable GPU Compositing`
+  - `Disable OOP Rasterization`
+  - `Enable Unsafe SwiftShader`
+- Safe defaults remain on the minimal `.41` X11 Chromium profile. The new
+  settings exist so HDMI experiments can be compared from HA UI without
+  rewriting the add-on each time.
+
 ## v1.3.2-welizard.41 - March 2026
 
 - Drop the `.40` `swiftshader-webgl` fallback and all temporary Chromium GPU

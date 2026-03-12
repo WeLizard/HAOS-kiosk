@@ -87,6 +87,8 @@ declare -a BROWSER_FLAGS=()
 BROWSER_PROCESS_MATCH=""
 CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
 CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
+CHROMIUM_USE_GL="${CHROMIUM_USE_GL:-auto}"
+CHROMIUM_ANGLE_BACKEND="${CHROMIUM_ANGLE_BACKEND:-default}"
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
@@ -132,6 +134,12 @@ load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
 load_config_var BROWSER_REFRESH 0
 load_config_var BROWSER_ENGINE "chromium"
+load_config_var CHROMIUM_USE_GL "auto"
+load_config_var CHROMIUM_ANGLE_BACKEND "default"
+load_config_var CHROMIUM_DISABLE_SKIA_RENDERER false
+load_config_var CHROMIUM_DISABLE_GPU_COMPOSITING false
+load_config_var CHROMIUM_DISABLE_OOP_RASTERIZATION false
+load_config_var CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER false
 load_config_var SCREEN_TIMEOUT 600  # Default to 600 seconds
 load_config_var OUTPUT_NUMBER 1  # Which *CONNECTED* Physical video output to use (Defaults to 1)
 #NOTE: By only considering *CONNECTED* output, this maximizes the chance of finding an output
@@ -215,6 +223,19 @@ esac
 export BROWSER_ENGINE
 export CHROMIUM_DEVTOOLS_PORT
 export CHROMIUM_PROFILE_DIR
+export CHROMIUM_USE_GL
+export CHROMIUM_ANGLE_BACKEND
+
+append_chromium_flag_if_true() {
+    local enabled="$1"
+    local flag="$2"
+
+    case "${enabled,,}" in
+        true|1|yes|on)
+            BROWSER_FLAGS+=("$flag")
+            ;;
+    esac
+}
 
 resolve_browser_binary() {
     case "$BROWSER_ENGINE" in
@@ -243,6 +264,43 @@ resolve_browser_binary() {
                 --ozone-platform=x11
                 --touch-events=enabled
             )
+
+            append_chromium_flag_if_true "$CHROMIUM_DISABLE_SKIA_RENDERER" --disable-features=UseSkiaRenderer
+            append_chromium_flag_if_true "$CHROMIUM_DISABLE_GPU_COMPOSITING" --disable-gpu-compositing
+            append_chromium_flag_if_true "$CHROMIUM_DISABLE_OOP_RASTERIZATION" --disable-oop-rasterization
+
+            case "${CHROMIUM_USE_GL,,}" in
+                ""|auto)
+                    ;;
+                desktop|egl|angle|swiftshader)
+                    BROWSER_FLAGS+=("--use-gl=${CHROMIUM_USE_GL,,}")
+                    ;;
+                *)
+                    bashio::log.error "Unsupported CHROMIUM_USE_GL='$CHROMIUM_USE_GL'"
+                    exit 1
+                    ;;
+            esac
+
+            if [ "${CHROMIUM_USE_GL,,}" = "angle" ]; then
+                case "${CHROMIUM_ANGLE_BACKEND,,}" in
+                    default|gl|gles|vulkan|swiftshader|swiftshader-webgl)
+                        BROWSER_FLAGS+=("--use-angle=${CHROMIUM_ANGLE_BACKEND,,}")
+                        ;;
+                    *)
+                        bashio::log.error "Unsupported CHROMIUM_ANGLE_BACKEND='$CHROMIUM_ANGLE_BACKEND'"
+                        exit 1
+                        ;;
+                esac
+            fi
+
+            if [ "${CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER,,}" = "true" ]; then
+                if [ "${CHROMIUM_USE_GL,,}" = "angle" ] && [ "${CHROMIUM_ANGLE_BACKEND,,}" = "swiftshader-webgl" ]; then
+                    BROWSER_FLAGS+=(--enable-unsafe-swiftshader)
+                else
+                    bashio::log.warning "Ignoring CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER because it only applies to use-gl=angle + use-angle=swiftshader-webgl"
+                fi
+            fi
+
             BROWSER_PROCESS_MATCH='chromium'
             ;;
         luakit)
@@ -268,8 +326,7 @@ if [ "$BROWSER_ENGINE" = "chromium" ]; then
     if [ -n "$chromium_version" ]; then
         bashio::log.info "Chromium version: $chromium_version"
     fi
-    # Keep the real display on Chromium's native X11 GPU path unless a later
-    # experiment proves a single explicit override is required on the target box.
+    bashio::log.info "Chromium tuning: use_gl=$CHROMIUM_USE_GL angle_backend=$CHROMIUM_ANGLE_BACKEND disable_skia=$CHROMIUM_DISABLE_SKIA_RENDERER disable_gpu_compositing=$CHROMIUM_DISABLE_GPU_COMPOSITING disable_oop_rasterization=$CHROMIUM_DISABLE_OOP_RASTERIZATION unsafe_swiftshader=$CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER"
     bashio::log.info "Chromium launch flags: ${BROWSER_FLAGS[*]}"
 fi
 
