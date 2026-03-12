@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2-welizard.47 - March 2026
+
+- Restore `mesa-gl` in the add-on image. The last known working Chromium
+  baseline (`c6378e1`) installed it, but the current image no longer did.
+- Keep `.46` runtime flags unchanged; this is a pure build-layer follow-up to
+  test the missing Mesa GL userspace on the HDMI Chromium path.
+
 ## v1.3.2-welizard.46 - March 2026
 
 - Keep the `.45` `Legacy Neiri` ANGLE+GL profile, but explicitly disable
