@@ -63,6 +63,18 @@ configuration:
       vulkan: "Vulkan"
       swiftshader: "SwiftShader"
       swiftshader-webgl: "SwiftShader WebGL"
+  chromium_enable_gpu_rasterization:
+    name: "Enable GPU Rasterization"
+    description: |
+      Add Chromium flag `--enable-gpu-rasterization`. This was part of the
+      older working Neiri runtime profile and should be tested explicitly,
+      not forced by default. [Default: False]
+  chromium_ignore_gpu_blocklist:
+    name: "Ignore GPU Blocklist"
+    description: |
+      Add Chromium flag `--ignore-gpu-blocklist`. This was part of the older
+      working Neiri runtime profile and should be tested explicitly, not
+      forced by default. [Default: False]
   chromium_disable_skia_renderer:
     name: "Disable Skia Renderer"
     description: |

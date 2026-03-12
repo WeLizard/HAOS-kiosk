@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.2-welizard.43 - March 2026
+
+- Add explicit advanced toggles for the two Chromium flags that were part of
+  the older working Neiri profile:
+  - `Enable GPU Rasterization`
+  - `Ignore GPU Blocklist`
+- Keep both off by default so `.43` stays on the clean `.42` baseline unless
+  the old profile is deliberately reproduced from the HA UI.
+
 ## v1.3.2-welizard.42 - March 2026
 
 - Expose Chromium graphics overrides in the add-on configuration instead of

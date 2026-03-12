@@ -136,6 +136,8 @@ load_config_var BROWSER_REFRESH 0
 load_config_var BROWSER_ENGINE "chromium"
 load_config_var CHROMIUM_USE_GL "auto"
 load_config_var CHROMIUM_ANGLE_BACKEND "default"
+load_config_var CHROMIUM_ENABLE_GPU_RASTERIZATION false
+load_config_var CHROMIUM_IGNORE_GPU_BLOCKLIST false
 load_config_var CHROMIUM_DISABLE_SKIA_RENDERER false
 load_config_var CHROMIUM_DISABLE_GPU_COMPOSITING false
 load_config_var CHROMIUM_DISABLE_OOP_RASTERIZATION false
@@ -265,6 +267,8 @@ resolve_browser_binary() {
                 --touch-events=enabled
             )
 
+            append_chromium_flag_if_true "$CHROMIUM_ENABLE_GPU_RASTERIZATION" --enable-gpu-rasterization
+            append_chromium_flag_if_true "$CHROMIUM_IGNORE_GPU_BLOCKLIST" --ignore-gpu-blocklist
             append_chromium_flag_if_true "$CHROMIUM_DISABLE_SKIA_RENDERER" --disable-features=UseSkiaRenderer
             append_chromium_flag_if_true "$CHROMIUM_DISABLE_GPU_COMPOSITING" --disable-gpu-compositing
             append_chromium_flag_if_true "$CHROMIUM_DISABLE_OOP_RASTERIZATION" --disable-oop-rasterization
@@ -326,7 +330,7 @@ if [ "$BROWSER_ENGINE" = "chromium" ]; then
     if [ -n "$chromium_version" ]; then
         bashio::log.info "Chromium version: $chromium_version"
     fi
-    bashio::log.info "Chromium tuning: use_gl=$CHROMIUM_USE_GL angle_backend=$CHROMIUM_ANGLE_BACKEND disable_skia=$CHROMIUM_DISABLE_SKIA_RENDERER disable_gpu_compositing=$CHROMIUM_DISABLE_GPU_COMPOSITING disable_oop_rasterization=$CHROMIUM_DISABLE_OOP_RASTERIZATION unsafe_swiftshader=$CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER"
+    bashio::log.info "Chromium tuning: use_gl=$CHROMIUM_USE_GL angle_backend=$CHROMIUM_ANGLE_BACKEND enable_gpu_rasterization=$CHROMIUM_ENABLE_GPU_RASTERIZATION ignore_gpu_blocklist=$CHROMIUM_IGNORE_GPU_BLOCKLIST disable_skia=$CHROMIUM_DISABLE_SKIA_RENDERER disable_gpu_compositing=$CHROMIUM_DISABLE_GPU_COMPOSITING disable_oop_rasterization=$CHROMIUM_DISABLE_OOP_RASTERIZATION unsafe_swiftshader=$CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER"
     bashio::log.info "Chromium launch flags: ${BROWSER_FLAGS[*]}"
 fi
 
