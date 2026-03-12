@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2-welizard.34 - March 2026
+
+- Keep the rollback baseline from `.33`, but stop forcing `--use-gl=egl`.
+- On the current amd64 Chromium package the only allowed implementation is
+  `egl-angle/default`, so hard-forcing EGL prevents the GPU process from
+  initializing at all and leaves the HDMI path black.
+
 ## v1.3.2-welizard.33 - March 2026
 
 - Roll back the Chromium runtime to the first stable Welizard baseline instead
