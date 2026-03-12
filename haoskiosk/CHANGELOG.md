@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.2-welizard.39 - March 2026
+
+- Keep the `.38` host compositor fixes, but disable WebGL in Chromium with
+  `--disable-webgl`.
+- This is a deliberate phase-step: the HDMI host path now paints simple pages
+  again, while `/scene/` still crashes specifically inside Chromium's WebGL
+  path (`GL_INVALID_FRAMEBUFFER_OPERATION`, `GL_CONTEXT_LOST_KHR`). For this
+  phase the avatar is intentionally ignored so the rest of the scene can be
+  validated on the real display without touching Kiosk Scene itself.
+
 ## v1.3.2-welizard.38 - March 2026
 
 - Keep the `.37` Linux non-Skia path, but also disable GPU compositing with
