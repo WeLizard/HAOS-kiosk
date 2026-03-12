@@ -132,7 +132,7 @@ load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
 load_config_var BROWSER_REFRESH 0
 load_config_var BROWSER_ENGINE "chromium"
-load_config_var CHROMIUM_PROFILE "recovery_baseline"
+load_config_var CHROMIUM_PROFILE "swiftshader_scene"
 load_config_var CHROMIUM_USE_GL "auto"
 load_config_var CHROMIUM_ANGLE_BACKEND "default"
 load_config_var CHROMIUM_ENABLE_GPU_RASTERIZATION false
@@ -166,6 +166,18 @@ load_config_var VNC_SERVER ""  1 #Mask password in log
 
 apply_chromium_profile() {
     case "${CHROMIUM_PROFILE,,}" in
+        swiftshader_scene)
+            # Reproduce the last confirmed HDMI-visible .40 runtime:
+            # host compositor guards from .38 plus SwiftShader WebGL for avatar.
+            CHROMIUM_USE_GL="angle"
+            CHROMIUM_ANGLE_BACKEND="swiftshader-webgl"
+            CHROMIUM_ENABLE_GPU_RASTERIZATION=false
+            CHROMIUM_IGNORE_GPU_BLOCKLIST=false
+            CHROMIUM_DISABLE_SKIA_RENDERER=true
+            CHROMIUM_DISABLE_GPU_COMPOSITING=true
+            CHROMIUM_DISABLE_OOP_RASTERIZATION=true
+            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=true
+            ;;
         recovery_baseline)
             # Reproduce the early c6378e1 Chromium launch stack as closely as
             # possible while keeping current target URL resolution.

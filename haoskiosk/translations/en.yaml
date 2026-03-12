@@ -44,15 +44,18 @@ configuration:
   chromium_profile:
     name: "Chromium Profile"
     description: |
-      Pick a tested Chromium flag profile. `Recovery Baseline` restores the
-      early c6378e1 Chromium launch stack, including the old prompt/cache
-      suppression and profile bootstrap that existed while Neiri still lived
-      inside `HAOS-kiosk Display`. `Legacy Neiri` keeps the later ANGLE+GL
-      experiment. `Desktop GLX` bypasses ANGLE and asks Chromium to use native
-      desktop OpenGL on X11 directly. `Minimal X11` keeps Chromium close to a
-      plain browser. Use `Custom` only when you explicitly want to control the
-      advanced flags below. [Default: Recovery Baseline]
+      Pick a tested Chromium flag profile. `SwiftShader Scene` restores the
+      `.40` HDMI-visible runtime: compositor guards from `.38` plus Chromium's
+      software WebGL fallback for the avatar path. `Recovery Baseline`
+      restores the early c6378e1 Chromium launch stack, including the old
+      prompt/cache suppression and profile bootstrap that existed while Neiri
+      still lived inside `HAOS-kiosk Display`. `Legacy Neiri` keeps the later
+      ANGLE+GL experiment. `Desktop GLX` bypasses ANGLE and asks Chromium to
+      use native desktop OpenGL on X11 directly. `Minimal X11` keeps Chromium
+      close to a plain browser. Use `Custom` only when you explicitly want to
+      control the advanced flags below. [Default: SwiftShader Scene]
     items:
+      swiftshader_scene: "SwiftShader Scene"
       recovery_baseline: "Recovery Baseline"
       legacy_neiri: "Legacy Neiri"
       desktop_glx: "Desktop GLX"

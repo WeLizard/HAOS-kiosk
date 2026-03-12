@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.2-welizard.51 - March 2026
+
+- Stop using `Recovery Baseline` as the default profile because it regressed
+  the physical HDMI path back to a black screen on the current box.
+- Add `SwiftShader Scene` as the new default Chromium profile.
+- This reproduces the last confirmed HDMI-visible `.40` runtime:
+  `UseSkiaRenderer` off, `--disable-gpu-compositing`,
+  `--disable-oop-rasterization`, and Chromium's official
+  `--use-gl=angle --use-angle=swiftshader-webgl --enable-unsafe-swiftshader`
+  fallback for the avatar path.
+
 ## v1.3.2-welizard.50 - March 2026
 
 - Add a `Recovery Baseline` Chromium profile and make it the default profile
