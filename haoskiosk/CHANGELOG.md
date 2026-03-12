@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2-welizard.46 - March 2026
+
+- Keep the `.45` `Legacy Neiri` ANGLE+GL profile, but explicitly disable
+  Chromium's Vulkan feature path and `Skia Graphite` for that profile.
+- This is a narrow follow-up to `.45`: same restored legacy launch profile,
+  with only anti-Vulkan/anti-Graphite hardening added for the current
+  `texStorage2D -> SharedImage -> GPU process exited` crash chain.
+
 ## v1.3.2-welizard.45 - March 2026
 
 - Tighten the `Legacy Neiri` preset to use `ANGLE + OpenGL` explicitly

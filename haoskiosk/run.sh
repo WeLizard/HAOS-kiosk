@@ -278,9 +278,23 @@ append_chromium_flag_if_true() {
     esac
 }
 
+append_chromium_feature_if_true() {
+    local enabled="$1"
+    local feature="$2"
+    local target_name="$3"
+
+    case "${enabled,,}" in
+        true|1|yes|on)
+            eval "$target_name+=(\"$feature\")"
+            ;;
+    esac
+}
+
 resolve_browser_binary() {
     case "$BROWSER_ENGINE" in
         chromium)
+            local -a disabled_features=()
+
             if command -v chromium-browser >/dev/null 2>&1; then
                 BROWSER="chromium-browser"
             elif command -v chromium >/dev/null 2>&1; then
@@ -308,9 +322,24 @@ resolve_browser_binary() {
 
             append_chromium_flag_if_true "$CHROMIUM_ENABLE_GPU_RASTERIZATION" --enable-gpu-rasterization
             append_chromium_flag_if_true "$CHROMIUM_IGNORE_GPU_BLOCKLIST" --ignore-gpu-blocklist
-            append_chromium_flag_if_true "$CHROMIUM_DISABLE_SKIA_RENDERER" --disable-features=UseSkiaRenderer
             append_chromium_flag_if_true "$CHROMIUM_DISABLE_GPU_COMPOSITING" --disable-gpu-compositing
             append_chromium_flag_if_true "$CHROMIUM_DISABLE_OOP_RASTERIZATION" --disable-oop-rasterization
+            append_chromium_feature_if_true "$CHROMIUM_DISABLE_SKIA_RENDERER" UseSkiaRenderer disabled_features
+
+            if [ "${CHROMIUM_PROFILE,,}" = "legacy_neiri" ]; then
+                # Chromium 144 on this Alpine/X11 HDMI path still tries to
+                # initialize Vulkan and then loses the GL context. Keep the
+                # legacy ANGLE+GL profile, but explicitly block the modern
+                # Vulkan/Graphite route for this one narrow experiment.
+                disabled_features+=(Vulkan)
+                BROWSER_FLAGS+=(--disable-skia-graphite)
+            fi
+
+            if [ "${#disabled_features[@]}" -gt 0 ]; then
+                local disable_features_csv
+                disable_features_csv="$(IFS=,; echo "${disabled_features[*]}")"
+                BROWSER_FLAGS+=("--disable-features=${disable_features_csv}")
+            fi
 
             case "${CHROMIUM_USE_GL,,}" in
                 ""|auto)
