@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2-welizard.45 - March 2026
+
+- Tighten the `Legacy Neiri` preset to use `ANGLE + OpenGL` explicitly
+  instead of `ANGLE + default`.
+- Keep the rest of the restored legacy launch profile unchanged so this
+  remains a narrow GPU-path experiment.
+
 ## v1.3.2-welizard.44 - March 2026
 
 - Add a single `Legacy Neiri` Chromium profile that restores the older

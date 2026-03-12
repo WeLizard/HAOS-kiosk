@@ -171,7 +171,9 @@ apply_chromium_profile() {
     case "${CHROMIUM_PROFILE,,}" in
         legacy_neiri)
             CHROMIUM_USE_GL="angle"
-            CHROMIUM_ANGLE_BACKEND="default"
+            # Chromium 144 on this HDMI path keeps drifting into a broken
+            # ANGLE/Vulkan route. Force the legacy profile onto OpenGL.
+            CHROMIUM_ANGLE_BACKEND="gl"
             CHROMIUM_ENABLE_GPU_RASTERIZATION=true
             CHROMIUM_IGNORE_GPU_BLOCKLIST=true
             CHROMIUM_DISABLE_SKIA_RENDERER=false
