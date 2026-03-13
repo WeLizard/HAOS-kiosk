@@ -147,6 +147,43 @@ def build_settings_script(sidebar: str, theme: str) -> str:
 """
 
 
+WEBGL_DIAG_SCRIPT = """
+(() => {
+  try {
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+    const webgl = !!gl;
+    let renderer = 'none';
+    let vendor = 'none';
+    if (gl) {
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      if (ext) {
+        renderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || 'unknown';
+        vendor = gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) || 'unknown';
+      }
+    }
+    const liveCanvas = document.querySelector('canvas');
+    const fallback = document.getElementById('fallback-portrait');
+    const frame = document.getElementById('frame');
+    const status = document.getElementById('status');
+    return {
+      webgl,
+      renderer,
+      vendor,
+      hasLiveCanvas: !!liveCanvas,
+      canvasSize: liveCanvas ? liveCanvas.width + 'x' + liveCanvas.height : 'none',
+      fallbackHidden: fallback ? fallback.classList.contains('hidden') : null,
+      frameReady: frame ? frame.classList.contains('is-ready') : null,
+      statusText: status ? status.textContent : null,
+      bodyLoading: document.body.classList.contains('is-loading'),
+    };
+  } catch (e) {
+    return { error: String(e) };
+  }
+})();
+"""
+
+
 def is_auth_page(url: str) -> bool:
     """Return True if URL looks like HA auth page."""
     return bool(re.match(rf"^{re.escape(HA_URL_BASE)}/auth/authorize\?response_type=code", url))
@@ -188,6 +225,7 @@ async def main() -> None:
     last_settings_url = ""
     last_reload_at = time.monotonic()
     reload_count = 0
+    webgl_diagnosed = False
 
     while True:
         try:
@@ -218,6 +256,16 @@ async def main() -> None:
                 else:
                     logger.warning("Failed to apply HA settings: %s", result)
                 last_settings_url = url
+
+            # One-time WebGL diagnostic after scene-runtime loads
+            if not webgl_diagnosed and url and "scene-runtime" in url:
+                await asyncio.sleep(12)  # give Live2D time to init
+                try:
+                    diag = extract_evaluate_value(await controller.evaluate(WEBGL_DIAG_SCRIPT))
+                    logger.info("WebGL diagnostic: %s", json.dumps(diag, ensure_ascii=False))
+                except Exception as diag_exc:
+                    logger.warning("WebGL diagnostic failed: %s", diag_exc)
+                webgl_diagnosed = True
 
             if BROWSER_REFRESH > 0 and url and url != "about:blank":
                 now = time.monotonic()

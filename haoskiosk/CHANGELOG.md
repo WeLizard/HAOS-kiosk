@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.2-welizard.54 - March 2026
+
+- Add one-time WebGL diagnostic in Chromium watchdog: after scene-runtime
+  loads, evaluates JS via DevTools to report WebGL support, GPU renderer,
+  canvas state, and avatar fallback status directly in addon logs.
+
 ## v1.3.2-welizard.53 - March 2026
 
 - **Build-layer fix:** install `mesa-vulkan-swrast` (lavapipe) and
