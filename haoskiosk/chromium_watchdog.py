@@ -162,20 +162,58 @@ WEBGL_DIAG_SCRIPT = """
         vendor = gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) || 'unknown';
       }
     }
-    const liveCanvas = document.querySelector('canvas');
-    const fallback = document.getElementById('fallback-portrait');
-    const frame = document.getElementById('frame');
-    const status = document.getElementById('status');
+    // Try to reach into the avatar iframe for Live2D state
+    let avatarState = null;
+    try {
+      const iframes = document.querySelectorAll('iframe');
+      for (const iframe of iframes) {
+        const src = iframe.src || '';
+        if (src.includes('avatar')) {
+          const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+          if (doc) {
+            const liveCanvas = doc.querySelector('canvas');
+            const fallback = doc.getElementById('fallback-portrait');
+            const frame = doc.getElementById('frame');
+            const status = doc.getElementById('status');
+            avatarState = {
+              iframeSrc: src.substring(0, 120),
+              hasLiveCanvas: !!liveCanvas,
+              canvasSize: liveCanvas ? liveCanvas.width + 'x' + liveCanvas.height : 'none',
+              fallbackHidden: fallback ? fallback.classList.contains('hidden') : null,
+              frameReady: frame ? frame.classList.contains('is-ready') : null,
+              statusText: status ? status.textContent : null,
+              bodyLoading: doc.body ? doc.body.classList.contains('is-loading') : null,
+            };
+            break;
+          }
+        }
+      }
+      if (!avatarState) {
+        // List all iframes for debugging
+        avatarState = {
+          iframeCount: iframes.length,
+          iframeSrcs: Array.from(iframes).map(f => (f.src || '').substring(0, 100)),
+        };
+      }
+    } catch (iframeErr) {
+      avatarState = { iframeError: String(iframeErr) };
+    }
+    // Also check main document for avatar elements (non-iframe case)
+    const mainCanvas = document.querySelector('canvas');
+    const mainFallback = document.getElementById('fallback-portrait');
+    const mainFrame = document.getElementById('frame');
+    const mainStatus = document.getElementById('status');
     return {
       webgl,
       renderer,
       vendor,
-      hasLiveCanvas: !!liveCanvas,
-      canvasSize: liveCanvas ? liveCanvas.width + 'x' + liveCanvas.height : 'none',
-      fallbackHidden: fallback ? fallback.classList.contains('hidden') : null,
-      frameReady: frame ? frame.classList.contains('is-ready') : null,
-      statusText: status ? status.textContent : null,
-      bodyLoading: document.body.classList.contains('is-loading'),
+      mainDoc: {
+        hasCanvas: !!mainCanvas,
+        fallbackHidden: mainFallback ? mainFallback.classList.contains('hidden') : null,
+        frameReady: mainFrame ? mainFrame.classList.contains('is-ready') : null,
+        statusText: mainStatus ? mainStatus.textContent : null,
+      },
+      avatar: avatarState,
     };
   } catch (e) {
     return { error: String(e) };
