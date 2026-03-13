@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.3.2-welizard.53 - March 2026
+
+- **Build-layer fix:** install `mesa-vulkan-swrast` (lavapipe) and
+  `vulkan-loader` in the container image. This is the root fix for the entire
+  WebGL/Live2D failure chain: Alpine Chromium only allows `egl-angle/default`,
+  which uses SwANGLE, which requires a working Vulkan ICD. Without lavapipe
+  there was no Vulkan backend, causing `VK_KHR_surface` /
+  `VK_KHR_xcb_surface` missing → `eglInitialize SwANGLE failed` → GPU process
+  crash → no WebGL → Live2D avatar stuck in static fallback.
+- Switch default `chromium_profile` from `swiftshader_scene` to `minimal`:
+  clean ANGLE/default path with no GPU overrides, letting Chromium use
+  lavapipe through SwANGLE naturally.
+- Add Vulkan ICD discovery logging at startup.
+- All previous profile experiments (`swiftshader_scene`, `recovery_baseline`,
+  `legacy_neiri`, `desktop_glx`) remain available but are no longer the
+  recommended default.
+
 ## v1.3.2-welizard.52 - March 2026
 
 - Keep `SwiftShader Scene` as the default profile, but explicitly disable
