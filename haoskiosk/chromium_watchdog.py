@@ -292,9 +292,14 @@ async def main() -> None:
             continue
 
         if display_was_off:
-            logger.info("Display is ON — waking up")
+            logger.info("Display is ON — waking up, forcing page reload")
             display_was_off = False
             stable_ticks = 0
+            try:
+                await controller.reload(ignore_cache=False)
+                last_reload_at = time.monotonic()
+            except Exception as wake_exc:
+                logger.warning("Wake-up reload failed: %s", wake_exc)
 
         try:
             target = await controller.get_page_target()
