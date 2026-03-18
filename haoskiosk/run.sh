@@ -333,6 +333,11 @@ resolve_browser_binary() {
                 --kiosk
                 --ozone-platform=x11
                 --touch-events=enabled
+                --disable-gpu-process-crash-limit
+                --gpu-no-context-lost
+                --disable-background-timer-throttling
+                --disable-backgrounding-occluded-windows
+                --disable-renderer-backgrounding
             )
 
             if is_recovery_baseline_profile; then

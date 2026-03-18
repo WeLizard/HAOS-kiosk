@@ -472,8 +472,19 @@ async def handle_refresh_browser(data: Payload) -> dict[str, Any]:  # pylint: di
     return {"success": result["success"]}
 
 ### Display power notification
+_DISPLAY_STATE_FILE = "/tmp/haoskiosk-display-state"
+
 async def _notify_browser_display_power(state: str) -> None:
-    """Notify browser of display power state change via CDP postMessage."""
+    """Notify browser of display power state change via CDP postMessage.
+
+    Also writes state to a file so other processes (watchdog) can read it
+    without needing IPC.
+    """
+    try:
+        with open(_DISPLAY_STATE_FILE, "w") as f:
+            f.write(state)
+    except Exception as exc:
+        logging.warning("[display_power] Failed to write state file: %s", exc)
     try:
         result = await execute_command(
             ["python3", "/browser_ctl.py", "notify_display_power", state],
@@ -494,10 +505,16 @@ async def _dpms_monitor() -> None:
 
     Catches display sleep triggered by DPMS auto-timeout (e.g. 120s idle)
     which bypasses the REST API and would otherwise leave the browser rendering.
+
+    Adaptive polling: 30s when display is on (to catch auto-timeout),
+    120s when display is off (just checking for external wake).
     """
+    _DPMS_POLL_ON = 30
+    _DPMS_POLL_OFF = 120
     global _last_display_state
     while True:
-        await asyncio.sleep(10)
+        poll_interval = _DPMS_POLL_OFF if _last_display_state is False else _DPMS_POLL_ON
+        await asyncio.sleep(poll_interval)
         try:
             result = await execute_command(
                 ["xset", "-q"],
