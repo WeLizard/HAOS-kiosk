@@ -470,6 +470,9 @@ ALLOWED_PATHS = {"/bin", "/usr/bin", "/usr/local/bin"} # Executables must be in 
 ## Commands that are white-listed -- all others are blocked (Note: set to ".*" to allow all or "" to block all)
 DEFAULT_COMMAND_WHITELIST_REGEX = r"cat|chromium|chromium-browser|date|dbus-send|echo|false|grep|head|ls|luakit|notify-send|ping|ping6|ps|pstree|sleep|tail|test|top|tree|xdotool|xset"
 COMMAND_WHITELIST_REGEX = os.getenv("COMMAND_WHITELIST", DEFAULT_COMMAND_WHITELIST_REGEX).strip()
+DISPLAY_STATE_FILE = "/tmp/haoskiosk-display-state"
+WAKE_ON_INPUT_THROTTLE_SECONDS = 1.0
+_last_wake_attempt_at = 0.0
 
 COMPILED_WHITELIST_REGEX: re.Pattern[str] | None = None
 if COMMAND_WHITELIST_REGEX:
@@ -675,6 +678,41 @@ def handle_display_off(timeout: int | None = None, *, _cmd_name: str = "unknown"
     """Force display off immediately."""
     cmd = ["xset", "dpms", "force", "off"]
     _run_subprocess(cmd, timeout=timeout, description=_cmd_name)
+
+
+def is_display_marked_off() -> bool:
+    """Best-effort shared display state check written by rest_server DPMS monitor."""
+    try:
+        with open(DISPLAY_STATE_FILE, encoding="utf-8") as f:
+            return f.read().strip() == "off"
+    except OSError:
+        return False
+
+
+def maybe_wake_display_on_input(ev: "XInputEventFilled") -> None:
+    """Force the display on when the first pointer/touch press arrives while DPMS is off.
+
+    The current HAOS-kiosk wake path assumes X/DPMS will wake purely from the
+    hardware event and then rest_server will notice the OFF->ON transition.
+    Some touch panels do not reliably wake that way, so we explicitly send
+    `xset dpms force on` on the first press and let rest_server handle the
+    follow-up refresh once it sees the monitor back online.
+    """
+    global _last_wake_attempt_at
+
+    if not is_display_marked_off():
+        return
+
+    now = time.monotonic()
+    if now - _last_wake_attempt_at < WAKE_ON_INPUT_THROTTLE_SECONDS:
+        return
+
+    _last_wake_attempt_at = now
+    debug(1, f"Auto-wake display on {ev.device_type.name.lower()} press")
+    try:
+        handle_display_on(timeout=1, _cmd_name="auto_wake_on_input")
+    except Exception as exc:
+        debug(0, f"FAILED: auto_wake_on_input: {exc}")
 
 SCREENSHOT_DIR: str = "/media/screenshots"  # Directory to store screenshots
 @register_function("screenshot", optional=["filename", "quality", "delay"],
@@ -2718,6 +2756,7 @@ def execute_commands(cmds_dict: CommandsDict) -> None:
 def process_PRESS(ev: XInputEventFilled) -> None:
     """ Add a new ButtonPress/TouchBegin event to relevant group"""
     debug(2, f"+PRESS {ev.sprint()}")
+    maybe_wake_display_on_input(ev)
     with _registry_lock:
         between_presses_string = ""
         group = ContactGroup.last_group_added(ev.device_id)

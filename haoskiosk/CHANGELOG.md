@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.2-welizard.63 - March 2026
+
+- Add explicit `wake-on-input` fallback in `mouse_touch_inputs.py`: when the
+  shared DPMS state says the display is off, the first mouse/touch press now
+  sends `xset dpms force on` immediately instead of waiting for X/DPMS to wake
+  on its own.
+- Keep the existing `rest_server` wake refresh path (`xdotool ctrl+r`) so once
+  the monitor comes back, Chromium still gets a repaint even if CDP on
+  `127.0.0.1:9222` is unavailable.
+- Bump add-on version so Home Assistant can pull this wake fix as an actual
+  update after `1.3.2-welizard.62`.
+
 ## v1.3.2-welizard.54 - March 2026
 
 - Add one-time WebGL diagnostic in Chromium watchdog: after scene-runtime
