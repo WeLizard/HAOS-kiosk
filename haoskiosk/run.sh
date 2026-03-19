@@ -325,20 +325,14 @@ resolve_browser_binary() {
                 --disable-session-crashed-bubble
                 --disable-infobars
                 --password-store=basic
-                --remote-debugging-address=0.0.0.0
+                --remote-debugging-address=127.0.0.1
                 --remote-debugging-port="$CHROMIUM_DEVTOOLS_PORT"
-                --remote-allow-origins=*
                 --user-data-dir="$CHROMIUM_PROFILE_DIR"
                 --window-position=0,0
                 --start-fullscreen
                 --kiosk
                 --ozone-platform=x11
                 --touch-events=enabled
-                --disable-gpu-process-crash-limit
-                --gpu-no-context-lost
-                --disable-background-timer-throttling
-                --disable-backgrounding-occluded-windows
-                --disable-renderer-backgrounding
             )
 
             if is_recovery_baseline_profile; then

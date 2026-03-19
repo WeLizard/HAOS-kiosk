@@ -44,9 +44,9 @@ BROWSER_REFRESH = max(0, int(os.getenv("BROWSER_REFRESH") or "0"))
 DARK_MODE = (os.getenv("DARK_MODE") or "true").strip().lower() == "true"
 RAW_SIDEBAR = (os.getenv("HA_SIDEBAR") or "").strip().lower()
 RAW_THEME = (os.getenv("HA_THEME") or "").strip()
-POLL_INTERVAL = 5.0
-POLL_INTERVAL_IDLE = 15.0
-POLL_INTERVAL_DISPLAY_OFF = 30.0  # slower when display off, but keep Chromium alive
+POLL_INTERVAL = 2.0
+POLL_INTERVAL_IDLE = 10.0
+POLL_INTERVAL_DISPLAY_OFF = 30.0
 HARD_RELOAD_FREQ = 10
 DISPLAY_STATE_FILE = "/tmp/haoskiosk-display-state"
 
@@ -150,81 +150,6 @@ def build_settings_script(sidebar: str, theme: str) -> str:
 """
 
 
-WEBGL_DIAG_SCRIPT = """
-(() => {
-  try {
-    const c = document.createElement('canvas');
-    const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
-    const webgl = !!gl;
-    let renderer = 'none';
-    let vendor = 'none';
-    if (gl) {
-      const ext = gl.getExtension('WEBGL_debug_renderer_info');
-      if (ext) {
-        renderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || 'unknown';
-        vendor = gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) || 'unknown';
-      }
-    }
-    // Try to reach into the avatar iframe for Live2D state
-    let avatarState = null;
-    try {
-      const iframes = document.querySelectorAll('iframe');
-      for (const iframe of iframes) {
-        const src = iframe.src || '';
-        if (src.includes('avatar')) {
-          const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-          if (doc) {
-            const liveCanvas = doc.querySelector('canvas');
-            const fallback = doc.getElementById('fallback-portrait');
-            const frame = doc.getElementById('frame');
-            const status = doc.getElementById('status');
-            avatarState = {
-              iframeSrc: src.substring(0, 120),
-              hasLiveCanvas: !!liveCanvas,
-              canvasSize: liveCanvas ? liveCanvas.width + 'x' + liveCanvas.height : 'none',
-              fallbackHidden: fallback ? fallback.classList.contains('hidden') : null,
-              frameReady: frame ? frame.classList.contains('is-ready') : null,
-              statusText: status ? status.textContent : null,
-              bodyLoading: doc.body ? doc.body.classList.contains('is-loading') : null,
-            };
-            break;
-          }
-        }
-      }
-      if (!avatarState) {
-        // List all iframes for debugging
-        avatarState = {
-          iframeCount: iframes.length,
-          iframeSrcs: Array.from(iframes).map(f => (f.src || '').substring(0, 100)),
-        };
-      }
-    } catch (iframeErr) {
-      avatarState = { iframeError: String(iframeErr) };
-    }
-    // Also check main document for avatar elements (non-iframe case)
-    const mainCanvas = document.querySelector('canvas');
-    const mainFallback = document.getElementById('fallback-portrait');
-    const mainFrame = document.getElementById('frame');
-    const mainStatus = document.getElementById('status');
-    return {
-      webgl,
-      renderer,
-      vendor,
-      mainDoc: {
-        hasCanvas: !!mainCanvas,
-        fallbackHidden: mainFallback ? mainFallback.classList.contains('hidden') : null,
-        frameReady: mainFrame ? mainFrame.classList.contains('is-ready') : null,
-        statusText: mainStatus ? mainStatus.textContent : null,
-      },
-      avatar: avatarState,
-    };
-  } catch (e) {
-    return { error: String(e) };
-  }
-})();
-"""
-
-
 def is_auth_page(url: str) -> bool:
     """Return True if URL looks like HA auth page."""
     return bool(re.match(rf"^{re.escape(HA_URL_BASE)}/auth/authorize\?response_type=code", url))
@@ -233,7 +158,6 @@ def is_auth_page(url: str) -> bool:
 def is_ha_page(url: str) -> bool:
     """Return True if URL belongs to the current HA instance."""
     return bool(url and (url + "/").startswith(HA_URL_BASE + "/"))
-
 
 
 def is_display_off() -> bool:
@@ -276,8 +200,7 @@ async def main() -> None:
     last_settings_url = ""
     last_reload_at = time.monotonic()
     reload_count = 0
-    webgl_diagnosed = False
-    stable_ticks = 0  # counts consecutive ticks with no URL change or action
+    stable_ticks = 0
 
     while True:
         try:
@@ -314,16 +237,6 @@ async def main() -> None:
                     logger.warning("Failed to apply HA settings: %s", result)
                 last_settings_url = url
                 action_taken = True
-
-            # One-time WebGL diagnostic after scene-runtime loads
-            if not webgl_diagnosed and url and "scene-runtime" in url:
-                await asyncio.sleep(12)  # give Live2D time to init
-                try:
-                    diag = extract_evaluate_value(await controller.evaluate(WEBGL_DIAG_SCRIPT))
-                    logger.info("WebGL diagnostic: %s", json.dumps(diag, ensure_ascii=False))
-                except Exception as diag_exc:
-                    logger.warning("WebGL diagnostic failed: %s", diag_exc)
-                webgl_diagnosed = True
 
             if BROWSER_REFRESH > 0 and url and url != "about:blank":
                 now = time.monotonic()
