@@ -14,7 +14,6 @@ import json
 import logging
 import os
 import re
-import subprocess
 import time
 from typing import Any
 
@@ -47,9 +46,7 @@ RAW_SIDEBAR = (os.getenv("HA_SIDEBAR") or "").strip().lower()
 RAW_THEME = (os.getenv("HA_THEME") or "").strip()
 POLL_INTERVAL = 5.0
 POLL_INTERVAL_IDLE = 15.0
-POLL_INTERVAL_DISPLAY_OFF = 2.0  # cheap file check, no CDP calls
 HARD_RELOAD_FREQ = 10
-DISPLAY_STATE_FILE = "/tmp/haoskiosk-display-state"
 
 SIDEBAR_MAP = {
     "full": "",
@@ -236,16 +233,6 @@ def is_ha_page(url: str) -> bool:
     return bool(url and (url + "/").startswith(HA_URL_BASE + "/"))
 
 
-def is_display_off() -> bool:
-    """Check if display is off by reading the state file written by rest_server."""
-    try:
-        with open(DISPLAY_STATE_FILE) as f:
-            return f.read().strip() == "off"
-    except FileNotFoundError:
-        return False
-    except Exception:
-        return False
-
 
 def extract_evaluate_value(result: dict[str, Any]) -> Any:
     """Unwrap Runtime.evaluate returnByValue payload."""
@@ -281,39 +268,7 @@ async def main() -> None:
     webgl_diagnosed = False
     stable_ticks = 0  # counts consecutive ticks with no URL change or action
 
-    display_was_off = False
-
     while True:
-        # Deep sleep when display is off — no CDP calls, minimal CPU
-        if is_display_off():
-            if not display_was_off:
-                logger.info("Display is OFF — entering deep sleep")
-                display_was_off = True
-            await asyncio.sleep(POLL_INTERVAL_DISPLAY_OFF)
-            continue
-
-        if display_was_off:
-            logger.info("Display is ON — waking up, forcing page reload")
-            display_was_off = False
-            stable_ticks = 0
-            try:
-                await controller.reload(ignore_cache=False)
-                last_reload_at = time.monotonic()
-                logger.info("Wake-up reload via CDP succeeded")
-            except Exception as wake_exc:
-                logger.warning("Wake-up CDP reload failed: %s — falling back to xdotool", wake_exc)
-                try:
-                    subprocess.run(
-                        ["xdotool", "key", "--clearmodifiers", "ctrl+r"],
-                        env={**os.environ, "DISPLAY": os.getenv("DISPLAY", ":0")},
-                        timeout=5,
-                        check=False,
-                    )
-                    last_reload_at = time.monotonic()
-                    logger.info("Wake-up reload via xdotool fallback sent")
-                except Exception as xdt_exc:
-                    logger.warning("xdotool fallback also failed: %s", xdt_exc)
-
         try:
             target = await controller.get_page_target()
             url = str(target.get("url") or "")

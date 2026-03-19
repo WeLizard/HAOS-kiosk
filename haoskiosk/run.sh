@@ -325,8 +325,8 @@ resolve_browser_binary() {
                 --disable-session-crashed-bubble
                 --disable-infobars
                 --password-store=basic
-                --remote-debugging-address=127.0.0.1
                 --remote-debugging-port="$CHROMIUM_DEVTOOLS_PORT"
+                --remote-allow-origins=*
                 --user-data-dir="$CHROMIUM_PROFILE_DIR"
                 --window-position=0,0
                 --start-fullscreen
