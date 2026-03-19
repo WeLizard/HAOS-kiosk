@@ -219,8 +219,6 @@ async def run_browser_action(action: str, url: str | None = None) -> dict[str, A
             _run_luakit_command(["xdotool", "key", "--clearmodifiers", "ctrl+Left"])
         elif action == "forward":
             _run_luakit_command(["xdotool", "key", "--clearmodifiers", "ctrl+Right"])
-        elif action == "notify_display_power":
-            pass  # Luakit has no CDP injection support
         else:
             raise RuntimeError(f"Unsupported luakit action: {action}")
         return {"success": True, "engine": "luakit", "action": action}
@@ -236,18 +234,13 @@ async def run_browser_action(action: str, url: str | None = None) -> dict[str, A
         return await controller.go_forward()
     if action == "page_info":
         return await controller.get_page_target()
-    if action == "notify_display_power":
-        if url not in ("on", "off"):
-            raise RuntimeError(f"notify_display_power requires 'on' or 'off', got: {url}")
-        msg_type = "kiosk-display-off" if url == "off" else "kiosk-display-on"
-        return await controller.evaluate(f"window.postMessage({{type:'{msg_type}'}}, '*')")
     raise RuntimeError(f"Unknown browser action: {action}")
 
 
 async def _main_async(argv: list[str]) -> int:
     if len(argv) < 2:
         print(
-            "Usage: browser_ctl.py <launch_url|refresh_browser|back|forward|page_info|notify_display_power> [url|on|off]",
+            "Usage: browser_ctl.py <launch_url|refresh_browser|back|forward|page_info> [url]",
             file=sys.stderr,
         )
         return 2

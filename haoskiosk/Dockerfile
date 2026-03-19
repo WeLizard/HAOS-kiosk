@@ -22,8 +22,6 @@ RUN apk update && apk add --no-cache \
      mesa-egl \
      mesa-gles \
      mesa-gl \
-     mesa-vulkan-swrast \
-     vulkan-loader \
      libdrm \
 ### X utils
      xdotool \

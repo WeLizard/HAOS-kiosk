@@ -193,7 +193,6 @@ async def main() -> None:
         try:
             target = await controller.get_page_target()
             url = str(target.get("url") or "")
-
             if url and url != last_url:
                 logger.info("URL: %s", url)
                 last_url = url

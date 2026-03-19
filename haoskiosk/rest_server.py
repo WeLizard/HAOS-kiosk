@@ -501,9 +501,8 @@ async def handle_display_on(data: Payload) -> dict[str, Any]:
         log_msg = f" Screen timeout: {blank_timeout}s"
 
     results = [await execute_command(cmd, timeout=SHORT_TIMEOUT, log_prefix="display_on", allow_command=True) for cmd in cmds]
-    success = all(r["success"] for r in results)
     logging.info("[display_on]%s", log_msg)
-    return {"success": success, "results": results}
+    return {"success": all(r["success"] for r in results), "results": results}
 
 @register_function("display_off")
 async def handle_display_off(data: Payload) -> dict[str, Any]:  # pylint: disable=unused-argument

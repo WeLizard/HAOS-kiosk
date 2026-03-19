@@ -1,51 +1,15 @@
 # Changelog
 
-## v1.3.2-welizard.64 - March 2026
+## v1.3.2-welizard.65 - March 2026
 
-- Rebuild the display wake path from the `.53` baseline instead of layering
-  more logic onto the post-`.52` sleep/wake architecture.
-- Remove `rest_server` DPMS polling, shared `/tmp/haoskiosk-display-state`
-  orchestration, and watchdog display-off behavior from the main wake path.
-- Make `mouse_touch_inputs.py` wake the monitor from the real DPMS state on
-  the first touch/mouse press, then trigger one local `xdotool ctrl+r`
-  repaint without depending on CDP or a second process noticing the wake-up.
-- Clean up `SCREEN_TIMEOUT=0` handling so blanking is disabled via
-  `xset s off` and `xset -dpms` directly.
-
-## v1.3.2-welizard.63 - March 2026
-
-- Add explicit `wake-on-input` fallback in `mouse_touch_inputs.py`: when the
-  shared DPMS state says the display is off, the first mouse/touch press now
-  sends `xset dpms force on` immediately instead of waiting for X/DPMS to wake
-  on its own.
-- Keep the existing `rest_server` wake refresh path (`xdotool ctrl+r`) so once
-  the monitor comes back, Chromium still gets a repaint even if CDP on
-  `127.0.0.1:9222` is unavailable.
-- Bump add-on version so Home Assistant can pull this wake fix as an actual
-  update after `1.3.2-welizard.62`.
-
-## v1.3.2-welizard.54 - March 2026
-
-- Add one-time WebGL diagnostic in Chromium watchdog: after scene-runtime
-  loads, evaluates JS via DevTools to report WebGL support, GPU renderer,
-  canvas state, and avatar fallback status directly in addon logs.
-
-## v1.3.2-welizard.53 - March 2026
-
-- **Build-layer fix:** install `mesa-vulkan-swrast` (lavapipe) and
-  `vulkan-loader` in the container image. This is the root fix for the entire
-  WebGL/Live2D failure chain: Alpine Chromium only allows `egl-angle/default`,
-  which uses SwANGLE, which requires a working Vulkan ICD. Without lavapipe
-  there was no Vulkan backend, causing `VK_KHR_surface` /
-  `VK_KHR_xcb_surface` missing → `eglInitialize SwANGLE failed` → GPU process
-  crash → no WebGL → Live2D avatar stuck in static fallback.
-- Switch default `chromium_profile` from `swiftshader_scene` to `minimal`:
-  clean ANGLE/default path with no GPU overrides, letting Chromium use
-  lavapipe through SwANGLE naturally.
-- Add Vulkan ICD discovery logging at startup.
-- All previous profile experiments (`swiftshader_scene`, `recovery_baseline`,
-  `legacy_neiri`, `desktop_glx`) remain available but are no longer the
-  recommended default.
+- Roll back the add-on runtime files to the exact `.52` source baseline after
+  later display-path lines regressed into black-screen behavior on the target
+  HDMI box.
+- Restore the `.52` Chromium defaults (`SwiftShader Scene`) and remove the
+  post-`.52` wake/display experiments from the main user path.
+- Keep this release intentionally narrow: runtime sources match `.52`; only
+  the installable version/changelog metadata are newer so Home Assistant can
+  pull the rollback as an update.
 
 ## v1.3.2-welizard.52 - March 2026
 

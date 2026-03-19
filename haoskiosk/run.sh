@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.2-welizard.64
+# Version: 1.3.2-welizard.34
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -506,13 +506,6 @@ if [ "$BROWSER_ENGINE" = "chromium" ]; then
     if [ -n "$chromium_version" ]; then
         bashio::log.info "Chromium version: $chromium_version"
     fi
-    # Log Vulkan ICD availability (lavapipe required for SwANGLE)
-    vulkan_icd_files="$(find /usr/share/vulkan/icd.d/ -name '*.json' 2>/dev/null | tr '\n' ' ' || true)"
-    if [ -n "$vulkan_icd_files" ]; then
-        bashio::log.info "Vulkan ICDs: $vulkan_icd_files"
-    else
-        bashio::log.warning "No Vulkan ICDs found — SwANGLE/WebGL will likely fail"
-    fi
     bashio::log.info "Chromium tuning: profile=$CHROMIUM_PROFILE use_gl=$CHROMIUM_USE_GL angle_backend=$CHROMIUM_ANGLE_BACKEND enable_gpu_rasterization=$CHROMIUM_ENABLE_GPU_RASTERIZATION ignore_gpu_blocklist=$CHROMIUM_IGNORE_GPU_BLOCKLIST disable_skia=$CHROMIUM_DISABLE_SKIA_RENDERER disable_gpu_compositing=$CHROMIUM_DISABLE_GPU_COMPOSITING disable_oop_rasterization=$CHROMIUM_DISABLE_OOP_RASTERIZATION unsafe_swiftshader=$CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER"
     bashio::log.info "Chromium launch flags: ${BROWSER_FLAGS[*]}"
 fi
@@ -798,14 +791,12 @@ fi
 bashio::log.info "$WINMGR window manager started successfully..."
 
 #### Configure screen timeout (Note: DPMS needs to be enabled/disabled *after* starting window manager)
+xset +dpms  #Turn on DPMS
+xset s "$SCREEN_TIMEOUT"
+xset dpms "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT"
 if [ "$SCREEN_TIMEOUT" -eq 0 ]; then
-    xset s off
-    xset -dpms
     bashio::log.info "Screen timeout disabled..."
 else
-    xset +dpms  #Turn on DPMS
-    xset s "$SCREEN_TIMEOUT"
-    xset dpms "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT"
     bashio::log.info "Screen timeout after $SCREEN_TIMEOUT seconds..."
 fi
 

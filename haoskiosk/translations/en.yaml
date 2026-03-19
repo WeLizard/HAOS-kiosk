@@ -44,18 +44,22 @@ configuration:
   chromium_profile:
     name: "Chromium Profile"
     description: |
-      Pick a Chromium flag profile. `Minimal X11` is the recommended default:
-      clean ANGLE/default path with no GPU overrides. WebGL works through
-      SwANGLE backed by lavapipe (software Vulkan). The other profiles are
-      legacy experiments kept for backward compatibility. Use `Custom` only
-      when you explicitly want to control the advanced flags below.
-      [Default: Minimal X11]
+      Pick a tested Chromium flag profile. `SwiftShader Scene` restores the
+      `.40` HDMI-visible runtime: compositor guards from `.38` plus Chromium's
+      software WebGL fallback for the avatar path. `Recovery Baseline`
+      restores the early c6378e1 Chromium launch stack, including the old
+      prompt/cache suppression and profile bootstrap that existed while Neiri
+      still lived inside `HAOS-kiosk Display`. `Legacy Neiri` keeps the later
+      ANGLE+GL experiment. `Desktop GLX` bypasses ANGLE and asks Chromium to
+      use native desktop OpenGL on X11 directly. `Minimal X11` keeps Chromium
+      close to a plain browser. Use `Custom` only when you explicitly want to
+      control the advanced flags below. [Default: SwiftShader Scene]
     items:
-      minimal: "Minimal X11 (recommended)"
-      swiftshader_scene: "SwiftShader Scene (legacy)"
-      recovery_baseline: "Recovery Baseline (legacy)"
-      legacy_neiri: "Legacy Neiri (legacy)"
-      desktop_glx: "Desktop GLX (legacy)"
+      swiftshader_scene: "SwiftShader Scene"
+      recovery_baseline: "Recovery Baseline"
+      legacy_neiri: "Legacy Neiri"
+      desktop_glx: "Desktop GLX"
+      minimal: "Minimal X11"
       custom: "Custom"
   chromium_use_gl:
     name: "Chromium GL Mode"
