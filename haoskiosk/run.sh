@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.2-welizard.53
+# Version: 1.3.2-welizard.64
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -798,12 +798,14 @@ fi
 bashio::log.info "$WINMGR window manager started successfully..."
 
 #### Configure screen timeout (Note: DPMS needs to be enabled/disabled *after* starting window manager)
-xset +dpms  #Turn on DPMS
-xset s "$SCREEN_TIMEOUT"
-xset dpms "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT"
 if [ "$SCREEN_TIMEOUT" -eq 0 ]; then
+    xset s off
+    xset -dpms
     bashio::log.info "Screen timeout disabled..."
 else
+    xset +dpms  #Turn on DPMS
+    xset s "$SCREEN_TIMEOUT"
+    xset dpms "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT"
     bashio::log.info "Screen timeout after $SCREEN_TIMEOUT seconds..."
 fi
 

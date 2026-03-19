@@ -179,7 +179,6 @@ except Exception as e:
 
 _command_semaphore = asyncio.Semaphore(MAX_CONCURRENT_COMMANDS)
 _active_processes: set[asyncio.subprocess.Process] = set()   # Track currently running subprocesses
-_last_display_state: bool | None = None  # DPMS monitor: None=unknown, True=on, False=off
 
 # --------------------------------------------------------------------------- #
 # Helper Functions
@@ -471,83 +470,6 @@ async def handle_refresh_browser(data: Payload) -> dict[str, Any]:  # pylint: di
     )
     return {"success": result["success"]}
 
-### Display power notification
-_DISPLAY_STATE_FILE = "/tmp/haoskiosk-display-state"
-
-async def _notify_browser_display_power(state: str) -> None:
-    """Handle display power state change.
-
-    Writes state to a file so watchdog can adapt its polling interval.
-    On wake-up, forces a browser repaint via xdotool (reliable, no CDP needed).
-    """
-    try:
-        with open(_DISPLAY_STATE_FILE, "w") as f:
-            f.write(state)
-    except Exception as exc:
-        logging.warning("[display_power] Failed to write state file: %s", exc)
-
-    if state == "on":
-        # Force browser repaint on wake-up via xdotool — works even when CDP is broken
-        result = await execute_command(
-            ["xdotool", "key", "--clearmodifiers", "ctrl+r"],
-            timeout=SHORT_TIMEOUT,
-            log_prefix="display_wake_refresh",
-            allow_command=True,
-        )
-        if result["success"]:
-            logging.info("[display_power] Forced browser refresh on wake-up")
-        else:
-            logging.warning("[display_power] Wake-up refresh failed: %s", result.get("stderr", ""))
-    else:
-        # Try CDP notification for display off (best-effort, not critical)
-        try:
-            result = await execute_command(
-                ["python3", "/browser_ctl.py", "notify_display_power", state],
-                timeout=SHORT_TIMEOUT,
-                log_prefix=f"display_power_{state}",
-                allow_command=True,
-                print_stdout=False,
-            )
-            if not result["success"]:
-                logging.debug("[display_power] CDP notification failed (expected): %s", result.get("stderr", ""))
-        except Exception as exc:
-            logging.debug("[display_power] CDP notification failed (expected): %s", exc)
-
-async def _dpms_monitor() -> None:
-    """Background task: poll DPMS state and notify browser on transitions.
-
-    Catches display sleep triggered by DPMS auto-timeout (e.g. 120s idle)
-    which bypasses the REST API and would otherwise leave the browser rendering.
-
-    Adaptive polling: 30s when display is on (to catch auto-timeout),
-    5s when display is off (fast wake-up detection).
-    """
-    _DPMS_POLL_ON = 30
-    _DPMS_POLL_OFF = 5
-    global _last_display_state
-    while True:
-        poll_interval = _DPMS_POLL_OFF if _last_display_state is False else _DPMS_POLL_ON
-        await asyncio.sleep(poll_interval)
-        try:
-            result = await execute_command(
-                ["xset", "-q"],
-                timeout=SHORT_TIMEOUT,
-                log_prefix="dpms_monitor",
-                allow_command=True,
-                print_stdout=False,
-                print_stderr=False,
-            )
-            if not result["success"]:
-                continue
-            is_on = "Monitor is On" in result["stdout"]
-            if _last_display_state is not None and is_on != _last_display_state:
-                state = "on" if is_on else "off"
-                logging.info("[dpms_monitor] Display transition detected: %s", state.upper())
-                await _notify_browser_display_power(state)
-            _last_display_state = is_on
-        except Exception as exc:
-            logging.warning("[dpms_monitor] Error: %s", exc)
-
 ### Display
 @register_function("is_display_on")  # GET endpoint – we register manually below
 async def handle_is_display_on(data: Payload) -> dict[str, Any]:  # pylint: disable=unused-argument
@@ -564,7 +486,6 @@ async def handle_is_display_on(data: Payload) -> dict[str, Any]:  # pylint: disa
 @register_function("display_on", optional=["timeout"], validators={"timeout": lambda x: x is None or (isinstance(x, int) and x >= 0)})
 async def handle_display_on(data: Payload) -> dict[str, Any]:
     """Turn display on, optionally set blanking timeout. If 0, then disables timeout"""
-    global _last_display_state
     blank_timeout = data.get("timeout")
 
     cmds = [ ["xset", "dpms", "force", "on"] ]
@@ -581,21 +502,14 @@ async def handle_display_on(data: Payload) -> dict[str, Any]:
 
     results = [await execute_command(cmd, timeout=SHORT_TIMEOUT, log_prefix="display_on", allow_command=True) for cmd in cmds]
     success = all(r["success"] for r in results)
-    if success:
-        _last_display_state = True
-        asyncio.create_task(_notify_browser_display_power("on"))
     logging.info("[display_on]%s", log_msg)
     return {"success": success, "results": results}
 
 @register_function("display_off")
 async def handle_display_off(data: Payload) -> dict[str, Any]:  # pylint: disable=unused-argument
-    """Force display off immediately and notify browser to pause rendering."""
-    global _last_display_state
+    """Force display off immediately."""
     result = await execute_command(["xset", "dpms", "force", "off"],
                                    timeout=SHORT_TIMEOUT, log_prefix="display_off", allow_command=True)
-    if result["success"]:
-        _last_display_state = False
-        asyncio.create_task(_notify_browser_display_power("off"))
     return {"success": result["success"]}
 
 @register_function("xset", required=["args"], validators={"args": lambda x: isinstance(x, str) and bool(x.strip())})
@@ -1017,8 +931,6 @@ async def main() -> None:
     try:
         await site.start()
         logging.info("Server started – ready to accept requests")
-        asyncio.create_task(_dpms_monitor())
-        logging.info("DPMS display monitor started (polling every 10s)")
     except OSError as exc:
         logging.error("Failed to bind to %s:%s → %s", REST_IP, REST_PORT, exc)
         sys.exit(1)

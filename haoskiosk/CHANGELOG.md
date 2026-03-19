@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.2-welizard.64 - March 2026
+
+- Rebuild the display wake path from the `.53` baseline instead of layering
+  more logic onto the post-`.52` sleep/wake architecture.
+- Remove `rest_server` DPMS polling, shared `/tmp/haoskiosk-display-state`
+  orchestration, and watchdog display-off behavior from the main wake path.
+- Make `mouse_touch_inputs.py` wake the monitor from the real DPMS state on
+  the first touch/mouse press, then trigger one local `xdotool ctrl+r`
+  repaint without depending on CDP or a second process noticing the wake-up.
+- Clean up `SCREEN_TIMEOUT=0` handling so blanking is disabled via
+  `xset s off` and `xset -dpms` directly.
+
 ## v1.3.2-welizard.63 - March 2026
 
 - Add explicit `wake-on-input` fallback in `mouse_touch_inputs.py`: when the

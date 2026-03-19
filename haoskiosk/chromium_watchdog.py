@@ -45,10 +45,7 @@ DARK_MODE = (os.getenv("DARK_MODE") or "true").strip().lower() == "true"
 RAW_SIDEBAR = (os.getenv("HA_SIDEBAR") or "").strip().lower()
 RAW_THEME = (os.getenv("HA_THEME") or "").strip()
 POLL_INTERVAL = 2.0
-POLL_INTERVAL_IDLE = 10.0
-POLL_INTERVAL_DISPLAY_OFF = 30.0
 HARD_RELOAD_FREQ = 10
-DISPLAY_STATE_FILE = "/tmp/haoskiosk-display-state"
 
 SIDEBAR_MAP = {
     "full": "",
@@ -160,15 +157,6 @@ def is_ha_page(url: str) -> bool:
     return bool(url and (url + "/").startswith(HA_URL_BASE + "/"))
 
 
-def is_display_off() -> bool:
-    """Check if display is off by reading the state file written by rest_server."""
-    try:
-        with open(DISPLAY_STATE_FILE) as f:
-            return f.read().strip() == "off"
-    except (FileNotFoundError, OSError):
-        return False
-
-
 def extract_evaluate_value(result: dict[str, Any]) -> Any:
     """Unwrap Runtime.evaluate returnByValue payload."""
     runtime_result = result.get("result")
@@ -200,25 +188,20 @@ async def main() -> None:
     last_settings_url = ""
     last_reload_at = time.monotonic()
     reload_count = 0
-    stable_ticks = 0
 
     while True:
         try:
             target = await controller.get_page_target()
             url = str(target.get("url") or "")
-            action_taken = False
 
             if url and url != last_url:
                 logger.info("URL: %s", url)
                 last_url = url
-                stable_ticks = 0
-                action_taken = True
 
             if HA_AUTO_LOGIN and url and is_auth_page(url) and url != last_auth_url:
                 await controller.evaluate(auto_login_script)
                 last_auth_url = url
                 logger.info("Triggered HA auto-login for %s", url)
-                action_taken = True
 
             if url and is_ha_page(url) and not is_auth_page(url) and url != last_settings_url:
                 result = extract_evaluate_value(await controller.evaluate(settings_script))
@@ -236,7 +219,6 @@ async def main() -> None:
                 else:
                     logger.warning("Failed to apply HA settings: %s", result)
                 last_settings_url = url
-                action_taken = True
 
             if BROWSER_REFRESH > 0 and url and url != "about:blank":
                 now = time.monotonic()
@@ -246,23 +228,11 @@ async def main() -> None:
                     await controller.reload(ignore_cache=ignore_cache)
                     last_reload_at = now
                     logger.info("Reloading%s: %s", " [HARD]" if ignore_cache else "", url)
-                    action_taken = True
-
-            if not action_taken:
-                stable_ticks += 1
 
         except Exception as exc:  # pylint: disable=broad-except
             logger.warning("Watchdog loop error: %s", exc)
-            stable_ticks = 0
 
-        # Adaptive polling: fast during setup, slow when idle, slowest when display off
-        if is_display_off():
-            interval = POLL_INTERVAL_DISPLAY_OFF
-        elif stable_ticks < 6:
-            interval = POLL_INTERVAL
-        else:
-            interval = POLL_INTERVAL_IDLE
-        await asyncio.sleep(interval)
+        await asyncio.sleep(POLL_INTERVAL)
 
 
 if __name__ == "__main__":
