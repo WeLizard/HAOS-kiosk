@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import time
 from typing import Any
 
@@ -298,8 +299,20 @@ async def main() -> None:
             try:
                 await controller.reload(ignore_cache=False)
                 last_reload_at = time.monotonic()
+                logger.info("Wake-up reload via CDP succeeded")
             except Exception as wake_exc:
-                logger.warning("Wake-up reload failed: %s", wake_exc)
+                logger.warning("Wake-up CDP reload failed: %s — falling back to xdotool", wake_exc)
+                try:
+                    subprocess.run(
+                        ["xdotool", "key", "--clearmodifiers", "ctrl+r"],
+                        env={**os.environ, "DISPLAY": os.getenv("DISPLAY", ":0")},
+                        timeout=5,
+                        check=False,
+                    )
+                    last_reload_at = time.monotonic()
+                    logger.info("Wake-up reload via xdotool fallback sent")
+                except Exception as xdt_exc:
+                    logger.warning("xdotool fallback also failed: %s", xdt_exc)
 
         try:
             target = await controller.get_page_target()

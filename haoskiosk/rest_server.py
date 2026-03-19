@@ -507,10 +507,10 @@ async def _dpms_monitor() -> None:
     which bypasses the REST API and would otherwise leave the browser rendering.
 
     Adaptive polling: 30s when display is on (to catch auto-timeout),
-    120s when display is off (just checking for external wake).
+    5s when display is off (fast wake-up detection).
     """
     _DPMS_POLL_ON = 30
-    _DPMS_POLL_OFF = 120
+    _DPMS_POLL_OFF = 5
     global _last_display_state
     while True:
         poll_interval = _DPMS_POLL_OFF if _last_display_state is False else _DPMS_POLL_ON
