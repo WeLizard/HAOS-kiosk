@@ -46,7 +46,9 @@ RAW_SIDEBAR = (os.getenv("HA_SIDEBAR") or "").strip().lower()
 RAW_THEME = (os.getenv("HA_THEME") or "").strip()
 POLL_INTERVAL = 5.0
 POLL_INTERVAL_IDLE = 15.0
+POLL_INTERVAL_DISPLAY_OFF = 30.0  # slower when display off, but keep Chromium alive
 HARD_RELOAD_FREQ = 10
+DISPLAY_STATE_FILE = "/tmp/haoskiosk-display-state"
 
 SIDEBAR_MAP = {
     "full": "",
@@ -234,6 +236,15 @@ def is_ha_page(url: str) -> bool:
 
 
 
+def is_display_off() -> bool:
+    """Check if display is off by reading the state file written by rest_server."""
+    try:
+        with open(DISPLAY_STATE_FILE) as f:
+            return f.read().strip() == "off"
+    except (FileNotFoundError, OSError):
+        return False
+
+
 def extract_evaluate_value(result: dict[str, Any]) -> Any:
     """Unwrap Runtime.evaluate returnByValue payload."""
     runtime_result = result.get("result")
@@ -331,8 +342,13 @@ async def main() -> None:
             logger.warning("Watchdog loop error: %s", exc)
             stable_ticks = 0
 
-        # Adaptive polling: fast during setup, slow when page is stable
-        interval = POLL_INTERVAL if stable_ticks < 6 else POLL_INTERVAL_IDLE
+        # Adaptive polling: fast during setup, slow when idle, slowest when display off
+        if is_display_off():
+            interval = POLL_INTERVAL_DISPLAY_OFF
+        elif stable_ticks < 6:
+            interval = POLL_INTERVAL
+        else:
+            interval = POLL_INTERVAL_IDLE
         await asyncio.sleep(interval)
 
 

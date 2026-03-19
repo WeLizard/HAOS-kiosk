@@ -475,30 +475,43 @@ async def handle_refresh_browser(data: Payload) -> dict[str, Any]:  # pylint: di
 _DISPLAY_STATE_FILE = "/tmp/haoskiosk-display-state"
 
 async def _notify_browser_display_power(state: str) -> None:
-    """Notify browser of display power state change via CDP postMessage.
+    """Handle display power state change.
 
-    Also writes state to a file so other processes (watchdog) can read it
-    without needing IPC.
+    Writes state to a file so watchdog can adapt its polling interval.
+    On wake-up, forces a browser repaint via xdotool (reliable, no CDP needed).
     """
     try:
         with open(_DISPLAY_STATE_FILE, "w") as f:
             f.write(state)
     except Exception as exc:
         logging.warning("[display_power] Failed to write state file: %s", exc)
-    try:
+
+    if state == "on":
+        # Force browser repaint on wake-up via xdotool — works even when CDP is broken
         result = await execute_command(
-            ["python3", "/browser_ctl.py", "notify_display_power", state],
+            ["xdotool", "key", "--clearmodifiers", "ctrl+r"],
             timeout=SHORT_TIMEOUT,
-            log_prefix=f"display_power_{state}",
+            log_prefix="display_wake_refresh",
             allow_command=True,
-            print_stdout=False,
         )
         if result["success"]:
-            logging.info("[display_power] Notified browser: display %s", state.upper())
+            logging.info("[display_power] Forced browser refresh on wake-up")
         else:
-            logging.warning("[display_power] Browser notification failed: %s", result.get("stderr", ""))
-    except Exception as exc:
-        logging.warning("[display_power] Failed to notify browser: %s", exc)
+            logging.warning("[display_power] Wake-up refresh failed: %s", result.get("stderr", ""))
+    else:
+        # Try CDP notification for display off (best-effort, not critical)
+        try:
+            result = await execute_command(
+                ["python3", "/browser_ctl.py", "notify_display_power", state],
+                timeout=SHORT_TIMEOUT,
+                log_prefix=f"display_power_{state}",
+                allow_command=True,
+                print_stdout=False,
+            )
+            if not result["success"]:
+                logging.debug("[display_power] CDP notification failed (expected): %s", result.get("stderr", ""))
+        except Exception as exc:
+            logging.debug("[display_power] CDP notification failed (expected): %s", exc)
 
 async def _dpms_monitor() -> None:
     """Background task: poll DPMS state and notify browser on transitions.
