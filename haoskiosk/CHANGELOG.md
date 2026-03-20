@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.2-welizard.68 - March 2026
+
+- Clear Chromium GPU/shader cache on startup for ALL profiles, not just
+  `recovery_baseline`. Corrupted GPU cache from prior deep-sleep experiments
+  (`e2f9af7`, `3895d2a`) persists in HA addon_config storage across updates
+  and is a likely cause of the persistent black screen after the `.65` rollback.
+- Restore `mesa-vulkan-swrast` + `vulkan-loader` in Dockerfile. These were
+  added in `.53` to enable SwANGLE/Lavapipe WebGL but were lost during the
+  `.65` revert to `.52` baseline.
+- Fix DPMS handling when `screen_timeout: 0`: properly run `xset s off` +
+  `xset -dpms` instead of enabling DPMS with zero timeouts.
+
 ## v1.3.2-welizard.67 - March 2026
 
 - Add a narrow Chromium startup diagnostics pass for the real HDMI box.

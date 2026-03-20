@@ -430,7 +430,6 @@ browser_process_running() {
 
 clear_chromium_runtime_cache() {
     [ "$BROWSER_ENGINE" = "chromium" ] || return 0
-    is_recovery_baseline_profile || return 0
 
     mkdir -p "$CHROMIUM_PROFILE_DIR"
 
@@ -795,12 +794,14 @@ fi
 bashio::log.info "$WINMGR window manager started successfully..."
 
 #### Configure screen timeout (Note: DPMS needs to be enabled/disabled *after* starting window manager)
-xset +dpms  #Turn on DPMS
-xset s "$SCREEN_TIMEOUT"
-xset dpms "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT"
 if [ "$SCREEN_TIMEOUT" -eq 0 ]; then
-    bashio::log.info "Screen timeout disabled..."
+    xset s off
+    xset -dpms
+    bashio::log.info "Screen timeout disabled (DPMS off)..."
 else
+    xset +dpms
+    xset s "$SCREEN_TIMEOUT"
+    xset dpms "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT"
     bashio::log.info "Screen timeout after $SCREEN_TIMEOUT seconds..."
 fi
 
