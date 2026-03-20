@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2-welizard.73 - March 2026
+
+- Disable GPU rasterization, GPU compositing, and OOP rasterization in
+  `intel_hwaccel` profile. The renderer process on Alpine musl crashes
+  with SIGILL when it uses GPU-accelerated Skia paths. Now only WebGL
+  goes through the GPU process via ANGLE/Vulkan — all renderer-side
+  compositing and rasterization stays in software.
+
 ## v1.3.2-welizard.72 - March 2026
 
 - Fix SIGILL in renderer: `--enable-features=Vulkan` caused Skia compositor

@@ -222,13 +222,18 @@ apply_chromium_profile() {
             # Routes WebGL through Vulkan instead of iris GL (which causes
             # SIGILL on Alpine musl).  Requires mesa-vulkan-intel package
             # and /dev/dri/renderD128 passthrough.
+            #
+            # GPU rasterization and compositing are DISABLED to keep all
+            # renderer-side code in software — only WebGL goes through the
+            # GPU process via ANGLE/Vulkan.  This avoids SIGILL in the
+            # renderer's Skia/compositor GPU paths on Alpine musl.
             CHROMIUM_USE_GL="angle"
             CHROMIUM_ANGLE_BACKEND="vulkan"
-            CHROMIUM_ENABLE_GPU_RASTERIZATION=true
+            CHROMIUM_ENABLE_GPU_RASTERIZATION=false
             CHROMIUM_IGNORE_GPU_BLOCKLIST=true
             CHROMIUM_DISABLE_SKIA_RENDERER=false
-            CHROMIUM_DISABLE_GPU_COMPOSITING=false
-            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
+            CHROMIUM_DISABLE_GPU_COMPOSITING=true
+            CHROMIUM_DISABLE_OOP_RASTERIZATION=true
             CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
             ;;
         minimal)
