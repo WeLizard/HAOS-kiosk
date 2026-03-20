@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2-welizard.72 - March 2026
+
+- Fix SIGILL in renderer: `--enable-features=Vulkan` caused Skia compositor
+  in the renderer process to initialize Vulkan directly on Alpine musl,
+  triggering SIGILL. Removed Vulkan feature flag — ANGLE uses Vulkan via
+  `--use-angle=vulkan` alone (GPU process only). Also disable Skia Graphite
+  to prevent renderer-side Vulkan initialization.
+
 ## v1.3.2-welizard.71 - March 2026
 
 - Add `intel_hwaccel` to translations so it appears in the HA UI dropdown.

@@ -392,8 +392,11 @@ resolve_browser_binary() {
             fi
 
             if [ "${CHROMIUM_PROFILE,,}" = "intel_hwaccel" ]; then
-                # Enable Vulkan for ANGLE's Vulkan backend on Intel ANV.
-                enabled_features+=(Vulkan VulkanFromANGLE)
+                # ANGLE uses Vulkan via --use-angle=vulkan flag alone.
+                # Do NOT enable the Vulkan feature — that enables Skia Vulkan
+                # in the renderer process, which causes SIGILL on Alpine musl.
+                disabled_features+=(Vulkan)
+                BROWSER_FLAGS+=(--disable-skia-graphite)
                 # Point Vulkan loader at Intel ANV ICD, skip software ICDs.
                 local intel_icd
                 for intel_icd in /usr/share/vulkan/icd.d/intel_icd.*.json /usr/share/vulkan/icd.d/intel_icd.json; do
