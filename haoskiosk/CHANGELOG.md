@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.2-welizard.75 - March 2026
+
+- Fix renderer SIGILL: add `--js-flags=--no-avx --no-avx2` to
+  `intel_hwaccel` profile. V8 JIT detects AVX2 on Intel N150 and emits
+  instructions that crash under Alpine musl. Force SSE4.2 baseline.
+- Add `chromium-swiftshader` package to Dockerfile. Chromium 137+ removed
+  the automatic SwiftShader WebGL fallback — without this package the
+  renderer has no software GL path and may crash on fallback init.
+
 ## v1.3.2-welizard.74 - March 2026
 
 - Fix fallback defaults: `CHROMIUM_PROFILE` → `intel_hwaccel` (was

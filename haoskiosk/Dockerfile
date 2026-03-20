@@ -69,6 +69,7 @@ RUN apk update && apk add --no-cache \
 #    luakit \
    && apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.21/community \
       chromium \
+      chromium-swiftshader \
       font-noto \
       font-noto-emoji \
       luakit=2.3.6-r0 \
