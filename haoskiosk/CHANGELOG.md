@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.2-welizard.76 - March 2026
+
+- Remove invalid `--js-flags=--no-avx --no-avx2` (V8 does not recognize
+  these flags). The SIGILL fix was from .73 profile changes (disable GPU
+  rasterization, compositing, OOP rasterization), not V8 JIT.
+
 ## v1.3.2-welizard.75 - March 2026
 
 - Fix renderer SIGILL: add `--js-flags=--no-avx --no-avx2` to

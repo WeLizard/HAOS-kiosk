@@ -401,11 +401,6 @@ resolve_browser_binary() {
                 disabled_features+=(Vulkan)
                 BROWSER_FLAGS+=(--disable-skia-graphite)
 
-                # Prevent V8 JIT from emitting AVX/AVX2 instructions — these
-                # cause SIGILL in the renderer on Alpine musl even though the
-                # CPU supports them.  Force V8 to use SSE4.2 baseline only.
-                BROWSER_FLAGS+=('--js-flags=--no-avx --no-avx2')
-
                 # Point Vulkan loader at Intel ANV ICD, skip software ICDs.
                 local intel_icd
                 for intel_icd in /usr/share/vulkan/icd.d/intel_icd.*.json /usr/share/vulkan/icd.d/intel_icd.json; do
