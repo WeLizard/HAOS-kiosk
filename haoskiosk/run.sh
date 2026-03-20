@@ -217,24 +217,17 @@ apply_chromium_profile() {
             CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
             ;;
         intel_hwaccel)
-            # Software WebGL via SwiftShader ANGLE on Alpine musl.
-            # Chromium 146 on Alpine/musl crashes the renderer with SIGILL
-            # when ANY WebGL/WASM workload runs, regardless of the GPU
-            # backend (Intel ANV, lavapipe, etc.).  The crash is in the
-            # renderer process, not the GPU process.
-            #
-            # The proven working approach (Grafana chromium-swiftshader-alpine):
-            # route WebGL through ANGLE's SwiftShader backend.  This keeps
-            # everything in software but avoids the renderer SIGILL.
-            # Requires chromium-swiftshader package.
-            CHROMIUM_USE_GL="angle"
-            CHROMIUM_ANGLE_BACKEND="swiftshader"
+            # Clean ANGLE/default profile.  On Alpine 3.21 (Chromium 136)
+            # this auto-selects SwANGLE via lavapipe for WebGL.
+            # mesa-vulkan-swrast + vulkan-loader must be installed.
+            CHROMIUM_USE_GL="auto"
+            CHROMIUM_ANGLE_BACKEND="default"
             CHROMIUM_ENABLE_GPU_RASTERIZATION=false
             CHROMIUM_IGNORE_GPU_BLOCKLIST=false
             CHROMIUM_DISABLE_SKIA_RENDERER=false
             CHROMIUM_DISABLE_GPU_COMPOSITING=false
             CHROMIUM_DISABLE_OOP_RASTERIZATION=false
-            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=true
+            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
             ;;
         minimal)
             CHROMIUM_USE_GL="auto"
@@ -395,14 +388,9 @@ resolve_browser_binary() {
                 BROWSER_FLAGS+=(--disable-skia-graphite)
             fi
 
-            if [ "${CHROMIUM_PROFILE,,}" = "intel_hwaccel" ]; then
-                # Block Vulkan feature (prevents Skia Vulkan in renderer).
-                # Block Skia Graphite (prevents renderer-side Vulkan init).
-                # SwiftShader ANGLE uses its own built-in Vulkan ICD, no
-                # need to set VK_ICD_FILENAMES.
-                disabled_features+=(Vulkan)
-                BROWSER_FLAGS+=(--disable-skia-graphite)
-            fi
+            # (intel_hwaccel block removed — Chromium 136 on Alpine 3.21
+            #  auto-selects the working SwANGLE/lavapipe path without
+            #  needing Vulkan/Graphite feature overrides.)
 
             if [ "${#enabled_features[@]}" -gt 0 ]; then
                 local enable_features_csv

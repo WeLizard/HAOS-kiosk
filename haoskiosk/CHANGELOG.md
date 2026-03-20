@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.2-welizard.78 - March 2026
+
+- Pin base image to Alpine 3.21 via `build.yaml`. HAOS 17.1 defaults
+  to Alpine 3.23 which ships Chromium 146 — this version crashes the
+  renderer with SIGILL on musl when any WebGL/WASM content runs.
+  Alpine 3.21 ships Chromium 136 which was confirmed working in .53.
+- Revert `intel_hwaccel` profile to clean auto/default (same as the
+  working .53 `minimal` profile). Remove all Chromium 146-specific
+  workarounds (Vulkan feature disable, Skia Graphite disable, etc.).
+
 ## v1.3.2-welizard.77 - March 2026
 
 - Switch `intel_hwaccel` profile from ANGLE Vulkan (Intel ANV) to ANGLE
