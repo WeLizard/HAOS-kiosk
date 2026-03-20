@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.2-welizard.66 - March 2026
+
+- Stop auto-starting `chromium_watchdog.py` in the main Chromium path for a
+  narrow HDMI isolation pass.
+- Chromium still launches directly to `HA_TARGET_URL`, but the add-on no longer
+  depends on the DevTools watchdog loop during startup.
+- This release exists only to answer one question cleanly on the real box:
+  does the black-screen path remain when the watchdog is removed from startup?
+
 ## v1.3.2-welizard.65 - March 2026
 
 - Roll back the add-on runtime files to the exact `.52` source baseline after
