@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2-welizard.69 - March 2026
+
+- Re-enable Chromium watchdog unconditionally. The watchdog monitors via
+  DevTools and auto-reloads to the target URL when the renderer crashes
+  (e.g. after display wake from DPMS sleep). Removes the CHROMIUM_ENABLE_WATCHDOG
+  flag — watchdog now always runs alongside Chromium.
+
 ## v1.3.2-welizard.68 - March 2026
 
 - Clear Chromium GPU/shader cache on startup for ALL profiles, not just

@@ -1036,15 +1036,8 @@ if [ "$DEBUG_MODE" != true ]; then
     bashio::log.info "Launching $BROWSER browser(PID=$!): $HA_TARGET_URL"
 
     if [ "$BROWSER_ENGINE" = "chromium" ]; then
-        case "${CHROMIUM_ENABLE_WATCHDOG,,}" in
-            true|1|yes|on)
-                python3 -u /chromium_watchdog.py &
-                bashio::log.info "Launching Chromium watchdog(PID=$!) on DevTools port $CHROMIUM_DEVTOOLS_PORT"
-                ;;
-            *)
-                bashio::log.info "Chromium watchdog disabled for this run"
-                ;;
-        esac
+        python3 -u /chromium_watchdog.py &
+        bashio::log.info "Launching Chromium watchdog(PID=$!) on DevTools port $CHROMIUM_DEVTOOLS_PORT"
 
         case "${CHROMIUM_STARTUP_DIAG,,}" in
             true|1|yes|on)
