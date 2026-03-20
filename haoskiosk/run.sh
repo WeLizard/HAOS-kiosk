@@ -88,6 +88,7 @@ BROWSER_PROCESS_MATCH=""
 CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
 CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
 CHROMIUM_ENABLE_WATCHDOG="${CHROMIUM_ENABLE_WATCHDOG:-false}"
+CHROMIUM_STARTUP_DIAG="${CHROMIUM_STARTUP_DIAG:-true}"
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
@@ -279,6 +280,7 @@ export CHROMIUM_PROFILE
 export CHROMIUM_USE_GL
 export CHROMIUM_ANGLE_BACKEND
 export CHROMIUM_ENABLE_WATCHDOG
+export CHROMIUM_STARTUP_DIAG
 
 is_recovery_baseline_profile() {
     [ "${CHROMIUM_PROFILE,,}" = "recovery_baseline" ]
@@ -1040,6 +1042,13 @@ if [ "$DEBUG_MODE" != true ]; then
                 ;;
             *)
                 bashio::log.info "Chromium watchdog disabled for this run"
+                ;;
+        esac
+
+        case "${CHROMIUM_STARTUP_DIAG,,}" in
+            true|1|yes|on)
+                python3 -u /chromium_startup_diag.py &
+                bashio::log.info "Launching Chromium startup diagnostics(PID=$!)"
                 ;;
         esac
     fi

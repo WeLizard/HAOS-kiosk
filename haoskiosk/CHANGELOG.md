@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.2-welizard.67 - March 2026
+
+- Add a narrow Chromium startup diagnostics pass for the real HDMI box.
+- The add-on now logs timed snapshots of Chromium processes, X11 window
+  discovery, `xset`/`xrandr` display state, and DevTools `/json/version` /
+  `/json/list` availability during startup.
+- Save one startup screenshot to `/media/screenshots` so the X server output
+  can be compared with the physical black screen.
+
 ## v1.3.2-welizard.66 - March 2026
 
 - Stop auto-starting `chromium_watchdog.py` in the main Chromium path for a
