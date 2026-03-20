@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.2-welizard.77 - March 2026
+
+- Switch `intel_hwaccel` profile from ANGLE Vulkan (Intel ANV) to ANGLE
+  SwiftShader. Chromium 146 on Alpine/musl crashes the renderer with
+  SIGILL when any WebGL/WASM workload runs, regardless of GPU backend.
+  The crash is in the renderer, not the GPU process. SwiftShader ANGLE
+  is the proven working approach on Alpine (Grafana chromium-swiftshader-alpine).
+  Requires `chromium-swiftshader` package (added in .75).
+- Fix `--enable-unsafe-swiftshader` gate: accept both `swiftshader` and
+  `swiftshader-webgl` ANGLE backends (was only `swiftshader-webgl`).
+- Remove Intel ANV ICD forcing (VK_ICD_FILENAMES) — SwiftShader uses
+  its own built-in Vulkan implementation.
+
 ## v1.3.2-welizard.76 - March 2026
 
 - Remove invalid `--js-flags=--no-avx --no-avx2` (V8 does not recognize

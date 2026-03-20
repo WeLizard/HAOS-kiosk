@@ -217,23 +217,24 @@ apply_chromium_profile() {
             CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
             ;;
         intel_hwaccel)
-            # Hardware-accelerated Intel GPU via ANGLE Vulkan (ANV driver).
-            # Routes WebGL through Vulkan instead of iris GL (which causes
-            # SIGILL on Alpine musl).  Requires mesa-vulkan-intel package
-            # and /dev/dri/renderD128 passthrough.
+            # Software WebGL via SwiftShader ANGLE on Alpine musl.
+            # Chromium 146 on Alpine/musl crashes the renderer with SIGILL
+            # when ANY WebGL/WASM workload runs, regardless of the GPU
+            # backend (Intel ANV, lavapipe, etc.).  The crash is in the
+            # renderer process, not the GPU process.
             #
-            # GPU rasterization and compositing are DISABLED to keep all
-            # renderer-side code in software — only WebGL goes through the
-            # GPU process via ANGLE/Vulkan.  This avoids SIGILL in the
-            # renderer's Skia/compositor GPU paths on Alpine musl.
+            # The proven working approach (Grafana chromium-swiftshader-alpine):
+            # route WebGL through ANGLE's SwiftShader backend.  This keeps
+            # everything in software but avoids the renderer SIGILL.
+            # Requires chromium-swiftshader package.
             CHROMIUM_USE_GL="angle"
-            CHROMIUM_ANGLE_BACKEND="vulkan"
+            CHROMIUM_ANGLE_BACKEND="swiftshader"
             CHROMIUM_ENABLE_GPU_RASTERIZATION=false
-            CHROMIUM_IGNORE_GPU_BLOCKLIST=true
+            CHROMIUM_IGNORE_GPU_BLOCKLIST=false
             CHROMIUM_DISABLE_SKIA_RENDERER=false
-            CHROMIUM_DISABLE_GPU_COMPOSITING=true
-            CHROMIUM_DISABLE_OOP_RASTERIZATION=true
-            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
+            CHROMIUM_DISABLE_GPU_COMPOSITING=false
+            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
+            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=true
             ;;
         minimal)
             CHROMIUM_USE_GL="auto"
@@ -395,24 +396,12 @@ resolve_browser_binary() {
             fi
 
             if [ "${CHROMIUM_PROFILE,,}" = "intel_hwaccel" ]; then
-                # ANGLE uses Vulkan via --use-angle=vulkan flag alone.
-                # Do NOT enable the Vulkan feature — that enables Skia Vulkan
-                # in the renderer process, which causes SIGILL on Alpine musl.
+                # Block Vulkan feature (prevents Skia Vulkan in renderer).
+                # Block Skia Graphite (prevents renderer-side Vulkan init).
+                # SwiftShader ANGLE uses its own built-in Vulkan ICD, no
+                # need to set VK_ICD_FILENAMES.
                 disabled_features+=(Vulkan)
                 BROWSER_FLAGS+=(--disable-skia-graphite)
-
-                # Point Vulkan loader at Intel ANV ICD, skip software ICDs.
-                local intel_icd
-                for intel_icd in /usr/share/vulkan/icd.d/intel_icd.*.json /usr/share/vulkan/icd.d/intel_icd.json; do
-                    if [ -f "$intel_icd" ]; then
-                        export VK_ICD_FILENAMES="$intel_icd"
-                        bashio::log.info "Vulkan ICD forced: $intel_icd"
-                        break
-                    fi
-                done
-                if [ -z "${VK_ICD_FILENAMES:-}" ]; then
-                    bashio::log.warning "No Intel Vulkan ICD found — ANGLE Vulkan may fall back to software"
-                fi
             fi
 
             if [ "${#enabled_features[@]}" -gt 0 ]; then
@@ -452,10 +441,10 @@ resolve_browser_binary() {
             fi
 
             if [ "${CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER,,}" = "true" ]; then
-                if [ "${CHROMIUM_USE_GL,,}" = "angle" ] && [ "${CHROMIUM_ANGLE_BACKEND,,}" = "swiftshader-webgl" ]; then
+                if [ "${CHROMIUM_USE_GL,,}" = "angle" ] && [[ "${CHROMIUM_ANGLE_BACKEND,,}" == swiftshader* ]]; then
                     BROWSER_FLAGS+=(--enable-unsafe-swiftshader)
                 else
-                    bashio::log.warning "Ignoring CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER because it only applies to use-gl=angle + use-angle=swiftshader-webgl"
+                    bashio::log.warning "Ignoring CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER because it only applies to use-gl=angle + use-angle=swiftshader*"
                 fi
             fi
 
