@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.3.2-welizard.70 - March 2026
+
+- Add `intel_hwaccel` Chromium profile: hardware-accelerated WebGL via
+  ANGLE Vulkan backend on Intel GPU (ANV driver). This replaces both
+  the `swiftshader_scene` profile (broken on Chromium 146 — SwANGLE
+  lacks VK_KHR_surface for windowed contexts) and `minimal` profile
+  (SIGILL in iris GL JIT on Alpine musl).
+- Add `mesa-vulkan-intel` to Dockerfile for Intel ANV Vulkan driver.
+- `intel_hwaccel` profile auto-selects Intel Vulkan ICD via
+  VK_ICD_FILENAMES, enables `Vulkan` + `VulkanFromANGLE` features,
+  GPU rasterization, and ignores GPU blocklist.
+- Add GPU diagnostics at startup: DRI render nodes, Vulkan ICDs
+  installed, active VK_ICD_FILENAMES.
+
 ## v1.3.2-welizard.69 - March 2026
 
 - Re-enable Chromium watchdog unconditionally. The watchdog monitors via

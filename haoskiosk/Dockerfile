@@ -23,6 +23,7 @@ RUN apk update && apk add --no-cache \
      mesa-gles \
      mesa-gl \
      mesa-vulkan-swrast \
+     mesa-vulkan-intel \
      vulkan-loader \
      libdrm \
 ### X utils

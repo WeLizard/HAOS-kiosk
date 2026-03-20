@@ -217,6 +217,20 @@ apply_chromium_profile() {
             CHROMIUM_DISABLE_OOP_RASTERIZATION=false
             CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
             ;;
+        intel_hwaccel)
+            # Hardware-accelerated Intel GPU via ANGLE Vulkan (ANV driver).
+            # Routes WebGL through Vulkan instead of iris GL (which causes
+            # SIGILL on Alpine musl).  Requires mesa-vulkan-intel package
+            # and /dev/dri/renderD128 passthrough.
+            CHROMIUM_USE_GL="angle"
+            CHROMIUM_ANGLE_BACKEND="vulkan"
+            CHROMIUM_ENABLE_GPU_RASTERIZATION=true
+            CHROMIUM_IGNORE_GPU_BLOCKLIST=true
+            CHROMIUM_DISABLE_SKIA_RENDERER=false
+            CHROMIUM_DISABLE_GPU_COMPOSITING=false
+            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
+            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
+            ;;
         minimal)
             CHROMIUM_USE_GL="auto"
             CHROMIUM_ANGLE_BACKEND="default"
@@ -313,6 +327,7 @@ resolve_browser_binary() {
     case "$BROWSER_ENGINE" in
         chromium)
             local -a disabled_features=()
+            local -a enabled_features=()
 
             if command -v chromium-browser >/dev/null 2>&1; then
                 BROWSER="chromium-browser"
@@ -374,6 +389,29 @@ resolve_browser_binary() {
                 # display experiments.
                 disabled_features+=(Vulkan)
                 BROWSER_FLAGS+=(--disable-skia-graphite)
+            fi
+
+            if [ "${CHROMIUM_PROFILE,,}" = "intel_hwaccel" ]; then
+                # Enable Vulkan for ANGLE's Vulkan backend on Intel ANV.
+                enabled_features+=(Vulkan VulkanFromANGLE)
+                # Point Vulkan loader at Intel ANV ICD, skip software ICDs.
+                local intel_icd
+                for intel_icd in /usr/share/vulkan/icd.d/intel_icd.*.json /usr/share/vulkan/icd.d/intel_icd.json; do
+                    if [ -f "$intel_icd" ]; then
+                        export VK_ICD_FILENAMES="$intel_icd"
+                        bashio::log.info "Vulkan ICD forced: $intel_icd"
+                        break
+                    fi
+                done
+                if [ -z "${VK_ICD_FILENAMES:-}" ]; then
+                    bashio::log.warning "No Intel Vulkan ICD found — ANGLE Vulkan may fall back to software"
+                fi
+            fi
+
+            if [ "${#enabled_features[@]}" -gt 0 ]; then
+                local enable_features_csv
+                enable_features_csv="$(IFS=,; echo "${enabled_features[*]}")"
+                BROWSER_FLAGS+=("--enable-features=${enable_features_csv}")
             fi
 
             if [ "${#disabled_features[@]}" -gt 0 ]; then
@@ -655,6 +693,21 @@ done
 if [ -z "$selected_card" ]; then
     bashio::log.info "ERROR: No connected video card detected. Exiting.."
     exit 1
+fi
+
+# GPU / Vulkan diagnostics
+bashio::log.info "GPU diagnostics:"
+for rnode in /dev/dri/renderD*; do
+    if [ -c "$rnode" ]; then
+        bashio::log.info "  Render node: $rnode (perms=$(stat -c '%a' "$rnode" 2>/dev/null || echo '?'))"
+    fi
+done
+bashio::log.info "  Vulkan ICDs installed:"
+for icd in /usr/share/vulkan/icd.d/*.json; do
+    [ -f "$icd" ] && bashio::log.info "    $(basename "$icd")"
+done
+if [ -n "${VK_ICD_FILENAMES:-}" ]; then
+    bashio::log.info "  VK_ICD_FILENAMES=$VK_ICD_FILENAMES"
 fi
 
 #### Start Xorg in the background
