@@ -28,7 +28,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 HA_URL = (os.getenv("HA_URL") or "http://localhost:8123").rstrip("/")
-HA_URL_BASE = re.match(r"^(https?://[%w%.%-]+(?::\d+)?)", HA_URL)
+HA_URL_BASE = re.match(r"^(https?://[\w.\-]+(?::\d+)?)", HA_URL)
 HA_URL_BASE = HA_URL_BASE.group(1).rstrip("/") if HA_URL_BASE else HA_URL
 HA_USERNAME = os.getenv("HA_USERNAME") or ""
 HA_PASSWORD = os.getenv("HA_PASSWORD") or ""

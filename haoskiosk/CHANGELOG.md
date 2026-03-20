@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.3.2-welizard.74 - March 2026
+
+- Fix fallback defaults: `CHROMIUM_PROFILE` → `intel_hwaccel` (was
+  `swiftshader_scene`), `SCREEN_TIMEOUT` → `0` (was `600`),
+  `ONSCREEN_KEYBOARD` → `true` (was `false`). These now match
+  `config.yaml` defaults.
+- Fix `rest_bearer_token` translation key (was `rest_authorization_token`
+  causing the option to not render in HA UI).
+- Fix Lua-style regex `[%w%.%-]` in `chromium_watchdog.py` — replaced
+  with proper Python regex `[\w.\-]`.
+- Remove dead `CHROMIUM_ENABLE_WATCHDOG` variable (watchdog runs
+  unconditionally since .69).
+- Mark `SwiftShader Scene` profile as broken on Chromium 146 in UI.
+- Update `chromium_profile` description: default is now Intel GPU.
+
 ## v1.3.2-welizard.73 - March 2026
 
 - Disable GPU rasterization, GPU compositing, and OOP rasterization in

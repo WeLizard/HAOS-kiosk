@@ -87,7 +87,6 @@ declare -a BROWSER_FLAGS=()
 BROWSER_PROCESS_MATCH=""
 CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
 CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
-CHROMIUM_ENABLE_WATCHDOG="${CHROMIUM_ENABLE_WATCHDOG:-false}"
 CHROMIUM_STARTUP_DIAG="${CHROMIUM_STARTUP_DIAG:-true}"
 
 ################################################################################
@@ -134,7 +133,7 @@ load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
 load_config_var BROWSER_REFRESH 0
 load_config_var BROWSER_ENGINE "chromium"
-load_config_var CHROMIUM_PROFILE "swiftshader_scene"
+load_config_var CHROMIUM_PROFILE "intel_hwaccel"
 load_config_var CHROMIUM_USE_GL "auto"
 load_config_var CHROMIUM_ANGLE_BACKEND "default"
 load_config_var CHROMIUM_ENABLE_GPU_RASTERIZATION false
@@ -143,7 +142,7 @@ load_config_var CHROMIUM_DISABLE_SKIA_RENDERER false
 load_config_var CHROMIUM_DISABLE_GPU_COMPOSITING false
 load_config_var CHROMIUM_DISABLE_OOP_RASTERIZATION false
 load_config_var CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER false
-load_config_var SCREEN_TIMEOUT 600  # Default to 600 seconds
+load_config_var SCREEN_TIMEOUT 0  # Default to 0 (never blank)
 load_config_var OUTPUT_NUMBER 1  # Which *CONNECTED* Physical video output to use (Defaults to 1)
 #NOTE: By only considering *CONNECTED* output, this maximizes the chance of finding an output
 #      without any need to change configs. Set to 1, unless you have multiple video outputs connected.
@@ -154,7 +153,7 @@ load_config_var ROTATE_DISPLAY normal
 load_config_var MAP_TOUCH_INPUTS true
 load_config_var CURSOR_TIMEOUT 5  # Default to 5 seconds
 load_config_var KEYBOARD_LAYOUT us
-load_config_var ONSCREEN_KEYBOARD false
+load_config_var ONSCREEN_KEYBOARD true
 load_config_var SAVE_ONSCREEN_CONFIG true
 load_config_var XORG_CONF ""
 load_config_var XORG_APPEND_REPLACE append
@@ -298,7 +297,6 @@ export CHROMIUM_PROFILE_DIR
 export CHROMIUM_PROFILE
 export CHROMIUM_USE_GL
 export CHROMIUM_ANGLE_BACKEND
-export CHROMIUM_ENABLE_WATCHDOG
 export CHROMIUM_STARTUP_DIAG
 
 is_recovery_baseline_profile() {
