@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.2-welizard.71 - March 2026
+
+- Add `intel_hwaccel` to translations so it appears in the HA UI dropdown.
+- Change default profile from `swiftshader_scene` to `intel_hwaccel`.
+
 ## v1.3.2-welizard.70 - March 2026
 
 - Add `intel_hwaccel` Chromium profile: hardware-accelerated WebGL via

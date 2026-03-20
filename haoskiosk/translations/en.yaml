@@ -55,6 +55,7 @@ configuration:
       close to a plain browser. Use `Custom` only when you explicitly want to
       control the advanced flags below. [Default: SwiftShader Scene]
     items:
+      intel_hwaccel: "Intel GPU (Hardware)"
       swiftshader_scene: "SwiftShader Scene"
       recovery_baseline: "Recovery Baseline"
       legacy_neiri: "Legacy Neiri"
