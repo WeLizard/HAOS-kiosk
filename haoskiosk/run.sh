@@ -217,8 +217,8 @@ apply_chromium_profile() {
             CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
             ;;
         intel_hwaccel)
-            # Clean ANGLE/default profile.  On Alpine 3.21 (Chromium 136)
-            # this auto-selects SwANGLE via lavapipe for WebGL.
+            # Clean ANGLE/default profile.  On Alpine 3.22 (Chromium 142)
+            # this auto-selects the working GL path for WebGL.
             # mesa-vulkan-swrast + vulkan-loader must be installed.
             CHROMIUM_USE_GL="auto"
             CHROMIUM_ANGLE_BACKEND="default"
@@ -388,8 +388,8 @@ resolve_browser_binary() {
                 BROWSER_FLAGS+=(--disable-skia-graphite)
             fi
 
-            # (intel_hwaccel block removed — Chromium 136 on Alpine 3.21
-            #  auto-selects the working SwANGLE/lavapipe path without
+            # (intel_hwaccel uses clean auto/default — Chromium 142 on
+            #  Alpine 3.22 base selects a working GL path without
             #  needing Vulkan/Graphite feature overrides.)
 
             if [ "${#enabled_features[@]}" -gt 0 ]; then

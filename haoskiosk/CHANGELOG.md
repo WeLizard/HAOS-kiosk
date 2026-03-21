@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.2-welizard.79 - March 2026
+
+- Revert to default HAOS base image (Alpine 3.23) — remove `build.yaml`
+  that pinned Alpine 3.21. Chromium 136 on Alpine 3.21 crashes on startup
+  with SIGTRAP (never opens a window).
+- Install Chromium from Alpine 3.22 repos (Chromium 142) instead of 3.21
+  (136) or default 3.23 (146). Chromium 146 has SIGILL on musl WebGL/WASM,
+  Chromium 136 has SIGTRAP on startup. Chromium 142 is closest to the
+  confirmed working Chromium 144 from .52/.53 era.
+
 ## v1.3.2-welizard.78 - March 2026
 
 - Pin base image to Alpine 3.21 via `build.yaml`. HAOS 17.1 defaults

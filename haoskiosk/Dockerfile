@@ -67,7 +67,7 @@ RUN apk update && apk add --no-cache \
       x11vnc \
 # Browser
 #    luakit \
-   && apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.21/community \
+   && apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.22/community \
       chromium \
       chromium-swiftshader \
       font-noto \
