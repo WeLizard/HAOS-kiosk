@@ -16,6 +16,7 @@
 #         LOGIN_DELAY
 #         ZOOM_LEVEL
 #         BROWSER_REFRESH
+#         BROWSER_ENGINE
 #         SCREEN_TIMEOUT
 #         OUTPUT_NUMBER
 #         DARK_MODE
@@ -66,7 +67,6 @@ bashio::log.info "Core=$(echo "$ha_info" | jq -r '.homeassistant')  HAOS=$(echo 
 
 #### Clean up on exit:
 TTY0_DELETED=""  #Need to set to empty string since runs with nounset=on (like set -u)
-TTY0_HIDDEN=""
 ONBOARD_CONFIG_FILE="/config/onboard-settings.dconf"
 cleanup() {
     local exit_code=$?
@@ -76,21 +76,15 @@ cleanup() {
     fi
     jobs -p | xargs -r kill
     [ -n "$TTY0_DELETED" ] && mknod -m 620 /dev/tty0 c 4 0
-    [ -n "$TTY0_HIDDEN" ] && umount /dev/tty0 2>/dev/null
     rm -f /root/.local/share/luakit/cookies.db  # Remove cookie storage (not really necessary, but just in case...)
     exit "$exit_code"
 }
 trap cleanup HUP INT QUIT ABRT TERM EXIT
 
 ################################################################################
-#### Variables
+#### Variables — set based on browser engine (configured below)
 BROWSER=""
 BROWSER_FLAGS=""
-BROWSER_PID=""
-
-browser_process_running() {
-    [ -n "$BROWSER_PID" ] && kill -0 "$BROWSER_PID" 2>/dev/null
-}
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
@@ -128,14 +122,15 @@ load_config_var() {
     fi
 }
 
-load_config_var HA_USERNAME
+load_config_var HA_USERNAME ""
 load_config_var HA_PASSWORD "" 1  #Mask password in log
 load_config_var HA_URL "http://localhost:8123"
 load_config_var HA_DASHBOARD ""
 load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
 load_config_var BROWSER_REFRESH 0
-load_config_var SCREEN_TIMEOUT 0  # Default to 0 seconds
+load_config_var BROWSER_ENGINE "chromium"
+load_config_var SCREEN_TIMEOUT 0
 load_config_var OUTPUT_NUMBER 1  # Which *CONNECTED* Physical video output to use (Defaults to 1)
 #NOTE: By only considering *CONNECTED* output, this maximizes the chance of finding an output
 #      without any need to change configs. Set to 1, unless you have multiple video outputs connected.
@@ -157,55 +152,32 @@ load_config_var REST_BEARER_TOKEN "" 1  # Mask token in log
 load_config_var COMMAND_WHITELIST "^$"  # Default is no commands allowed
 load_config_var DEBUG_MODE false
 load_config_var VNC_SERVER ""  1 #Mask password in log
-load_config_var BROWSER_ENGINE "chromium"
 
-# Resolve browser binary and flags based on engine
-case "${BROWSER_ENGINE,,}" in
-    chromium|chrome)
-        if command -v chromium-browser >/dev/null 2>&1; then
-            BROWSER="chromium-browser"
-        elif command -v chromium >/dev/null 2>&1; then
-            BROWSER="chromium"
-        else
-            bashio::log.error "Chromium requested but not found in container"
-            exit 1
-        fi
+################################################################################
+#### Configure browser engine
+case "$BROWSER_ENGINE" in
+    chromium)
+        BROWSER="chromium-browser"
         BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled"
         bashio::log.info "Using browser engine: chromium [$BROWSER]"
-        bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo unknown)"
+        bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo 'unknown')"
         bashio::log.info "Chromium flags: $BROWSER_FLAGS"
         ;;
     luakit)
         BROWSER="luakit"
         BROWSER_FLAGS=""
-        bashio::log.info "Using browser engine: luakit"
+        bashio::log.info "Using browser engine: luakit [$BROWSER]"
+        # Validate credentials required for luakit (URL-based auth)
+        if [ -z "$HA_USERNAME" ] || [ -z "$HA_PASSWORD" ]; then
+            bashio::log.error "Error: HA_USERNAME and HA_PASSWORD must be set for luakit"
+            exit 1
+        fi
         ;;
     *)
-        bashio::log.error "Unknown BROWSER_ENGINE='$BROWSER_ENGINE' (expected chromium or luakit)"
+        bashio::log.error "Unknown browser engine: $BROWSER_ENGINE"
         exit 1
         ;;
 esac
-
-if [ "${BROWSER_ENGINE,,}" = "chromium" ]; then
-    # Clear Chromium GPU/shader caches on every start so a bad renderer state
-    # from the previous run does not survive add-on updates or restarts.
-    rm -rf \
-        /config/chromium-profile/GPUCache \
-        /config/chromium-profile/ShaderCache \
-        /config/chromium-profile/GrShaderCache \
-        /config/chromium-profile/GraphiteDawnCache \
-        /config/chromium-profile/DawnCache \
-        /config/chromium-profile/component_crx_cache \
-        2>/dev/null || true
-fi
-
-# Validate environment variables set by config.yaml
-# Auto-login requires both username and password; skip validation for Chromium
-# which can use existing HA sessions without credentials.
-if [ "${BROWSER_ENGINE,,}" = "luakit" ] && { [ -z "$HA_USERNAME" ] || [ -z "$HA_PASSWORD" ]; }; then
-    bashio::log.error "Error: HA_USERNAME and HA_PASSWORD must be set for luakit"
-    exit 1
-fi
 
 ################################################################################
 ### GTK and DBUS-related environment variables to improve stability
@@ -246,32 +218,24 @@ echo "export DBUS_SESSION_BUS_ADDRESS='$DBUS_SESSION_BUS_ADDRESS'" >> "$HOME/.pr
 # Note: Do *not* later remount as 'ro' since that affect the root fs and
 #       in particular will block HAOS updates
 if [ -e "/dev/tty0" ]; then
-    bashio::log.info "Hiding /dev/tty0 so X can start in container..."
-    if mount -o remount,rw /dev 2>/dev/null && rm -f /dev/tty0 ; then
-        TTY0_DELETED=1
-        bashio::log.info "Deleted /dev/tty0 successfully..."
-    elif mount --bind /dev/null /dev/tty0 2>/dev/null ; then
-        TTY0_HIDDEN=1
-        bashio::log.info "Hidden /dev/tty0 via bind mount..."
-    else
-        bashio::log.warning "Could not hide /dev/tty0, X may fail to start"
+    bashio::log.info "Attempting to remount /dev as 'rw' so we can (temporarily) delete /dev/tty0..."
+    mount -o remount,rw /dev
+    if ! mount -o remount,rw /dev ; then
+        bashio::log.error "Failed to remount /dev as read-write..."
+        exit 1
     fi
+    if  ! rm -f /dev/tty0 ; then
+        bashio::log.error "Failed to delete /dev/tty0..."
+        exit 1
+    fi
+    TTY0_DELETED=1
+    bashio::log.info "Deleted /dev/tty0 successfully..."
 fi
 
 #### Start udev (used by X)
 bashio::log.info "Starting 'udevd' and (re-)triggering..."
-if command -v udevd >/dev/null 2>&1; then
-    UDEVD_BIN="udevd"
-elif [ -x /lib/systemd/systemd-udevd ]; then
-    UDEVD_BIN="/lib/systemd/systemd-udevd"
-else
-    UDEVD_BIN=""
-    bashio::log.warning "udevd not found, input devices may not work"
-fi
-if [ -n "$UDEVD_BIN" ]; then
-    if ! $UDEVD_BIN --daemon || ! udevadm trigger; then
-        bashio::log.warning "WARNING: Failed to start udevd or trigger udev, input devices may not work"
-    fi
+if ! udevd --daemon || ! udevadm trigger; then
+    bashio::log.warning "WARNING: Failed to start udevd or trigger udev, input devices may not work"
 fi
 udevadm settle --timeout=10  #Wait for udev event processing to complete
 
@@ -332,7 +296,7 @@ libinput list-devices 2>/dev/null | awk '
     gsub(/^[ \t]+|[ \t]+$/, "", type)      # Trim capabilities (i.e., device type)
   }
   END { print_device() }  # Print last device
-' | sort -V | if command -v column >/dev/null 2>&1; then column -t -s $'\t'; else cat; fi
+' | sort -V | column -t -s $'\t'
 
 ## Determine main display card
 bashio::log.info "DRM video cards:"
@@ -389,7 +353,7 @@ echo "."
 bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"  #No cursor if <0
-/usr/lib/xorg/Xorg -sharevts -keeptty vt1 $NOCURSOR :0 </dev/null 2>&1 | grep -v "Could not resolve keysym XF86\|Errors from xkbcomp are not fatal\|XKEYBOARD keymap compiler (xkbcomp) reports" &
+Xorg $NOCURSOR </dev/null 2>&1 | grep -v "Could not resolve keysym XF86\|Errors from xkbcomp are not fatal\|XKEYBOARD keymap compiler (xkbcomp) reports" &
 
 XSTARTUP=30
 for ((i=0; i<=XSTARTUP; i++)); do
@@ -406,8 +370,6 @@ if [ -n "$TTY0_DELETED" ]; then
     else
         bashio::log.error "Failed to restore /dev/tty0..."
     fi
-elif [ -n "$TTY0_HIDDEN" ]; then
-    umount /dev/tty0 2>/dev/null && bashio::log.info "Unhidden /dev/tty0..."
 fi
 
 if ! xset q >/dev/null 2>&1; then
@@ -484,10 +446,6 @@ rm /tmp/new_keybinds.xml
 
 # Start openbox
 openbox &
-
-#WINMGR=xfwm4  #Alternately using xfwm4
-#xfsettingsd &
-#startxfce4 &
 
 O_PID=$!
 sleep 0.5  #Ensure window manager starts
@@ -724,27 +682,44 @@ if [ -n "$VNC_SERVER" ]; then
     x11vnc $X11VNC_OPTS 2> >(grep -v 'The VNC desktop is:' >&2)
 fi
 
-#### Start browser (or debug mode)  and wait/sleep
+#### Start browser (or debug mode) and wait/sleep
 if [ "$DEBUG_MODE" != true ]; then
-    ### Resolve target URL
-    # If HA_DASHBOARD is an absolute URL, use it directly; otherwise combine with HA_URL
-    if [[ "$HA_DASHBOARD" =~ ^https?:// ]]; then
-        HA_TARGET_URL="$HA_DASHBOARD"
-    elif [ -n "$HA_DASHBOARD" ]; then
-        HA_TARGET_URL="$HA_URL/$HA_DASHBOARD"
-    else
-        HA_TARGET_URL="$HA_URL"
+
+    #### Display sleep monitor — pause/resume Chromium when DPMS turns display off/on
+    if [ "$BROWSER_ENGINE" = "chromium" ] && [ "$SCREEN_TIMEOUT" -gt 0 ]; then
+        (
+            prev_state="On"
+            while true; do
+                state=$(xset q 2>/dev/null | awk '/Monitor is/ {print $NF}')
+                [ -z "$state" ] && state="On"
+                if [ "$state" != "$prev_state" ]; then
+                    case "$state" in
+                        Off|Standby|Suspend)
+                            pkill -STOP -f "chromium.*--type=renderer" 2>/dev/null
+                            pkill -STOP -f "chromium.*--type=gpu-process" 2>/dev/null
+                            bashio::log.info "Display sleep: paused Chromium rendering"
+                            ;;
+                        *)
+                            pkill -CONT -f "chromium.*--type=renderer" 2>/dev/null
+                            pkill -CONT -f "chromium.*--type=gpu-process" 2>/dev/null
+                            bashio::log.info "Display wake: resumed Chromium rendering"
+                            ;;
+                    esac
+                    prev_state="$state"
+                fi
+                sleep 5
+            done
+        ) &
+        bashio::log.info "Display sleep monitor started (checks every 5s)"
     fi
 
     ### Run browser in the background and wait for process to exit
-    # shellcheck disable=SC2086
-    $BROWSER ${BROWSER_FLAGS:+$BROWSER_FLAGS} "$HA_TARGET_URL" &
-    BROWSER_PID=$!
-    bashio::log.info "Launching $BROWSER browser(PID=$BROWSER_PID): $HA_TARGET_URL"
+    $BROWSER ${BROWSER_FLAGS:+$BROWSER_FLAGS} "$HA_URL/$HA_DASHBOARD" &
+    bashio::log.info "Launching $BROWSER browser(PID=$!): $HA_URL/$HA_DASHBOARD"
 
     count=0
     while true; do  # Wait for all browser processes to exit
-        if browser_process_running; then
+        if pgrep -f -- "^$BROWSER " > /dev/null 2>&1; then
             count=0
         else
             count=$((count + 1))

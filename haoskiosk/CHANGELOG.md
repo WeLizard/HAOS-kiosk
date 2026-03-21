@@ -1,12 +1,17 @@
 # Changelog
 
-## v1.3.2-welizard.94 - March 2026
+## v1.3.2-welizard.95 - March 2026
 
-- Fix X server startup on Debian: call Xorg binary directly at
-  `/usr/lib/xorg/Xorg` (bypass any wrapper), pass `-sharevts -keeptty vt1`
-  to completely bypass `/dev/tty0` VT management. The `vt1` argument sets
-  VTnum before parse_vt_settings runs, so tty0 is never opened.
-- Remove `xserver-xorg-legacy` (its Xorg.wrap may intercept flags).
+- **Clean rewrite from upstream puterboy/HAOS-kiosk.**
+  Back to Alpine base (no build.yaml, no Debian). Alpine's devtmpfs is
+  writable — the original tty0 delete hack works, no VT workarounds needed.
+- Added Chromium + WebGL support: `chromium`, `mesa-vulkan-swrast`,
+  `vulkan-loader` packages. Clean flags, no GL/ANGLE overrides.
+- Added `browser_engine` config option (`chromium`|`luakit`, default: chromium).
+- Added display sleep: when DPMS turns screen off, Chromium renderer and
+  GPU processes are paused (SIGSTOP). Resumed on wake (SIGCONT).
+- Made `ha_username`/`ha_password` optional (not needed for Chromium ingress).
+- Removed Debian-specific workarounds (.91-.94).
 
 ## v1.3.2-welizard.91 - March 2026
 
