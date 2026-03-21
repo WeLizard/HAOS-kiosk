@@ -1,12 +1,9 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: Dockerfile
-# Version: 1.3.2-welizard.80
+# Version: 1.3.0
 # Copyright Jeff Kosowsky
 # Date: February 2026
-#
-# Debian bookworm (glibc) base — eliminates musl-specific Chromium crashes
-# (SIGILL on WebGL/WASM) that affect Alpine builds.
 ################################################################################
 
 ARG BUILD_FROM
@@ -17,54 +14,61 @@ ENV ADDON_VERSION=${BUILD_VERSION}
 
 #===============================================================================
 ##### Install X, Browser and all necessary dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apk update && apk add --no-cache \
 ## Xserver and graphics
-     xserver-xorg-core \
-     libgl1-mesa-dri \
-     libegl1 \
-     libgles2 \
-     libgl1 \
-     mesa-vulkan-drivers \
-     libvulkan1 \
-     libdrm2 \
+     xorg-server \
+     xf86-video-modesetting \
+     mesa-dri-gallium \
+     mesa-egl \
+     mesa-gles \
+     mesa-gl \
+     mesa-vulkan-swrast \
+     vulkan-loader \
+     libdrm \
 ### X utils
      xdotool \
      xinput \
-     x11-xserver-utils \
-     libxkbcommon0 \
-     x11-xkb-utils \
+     xrandr \
+     xset \
+#     xev \
+     libxkbcommon \
+     setxkbmap \
 ### Input, udev
-     xserver-xorg-input-libinput \
-     libinput-tools \
+     xf86-input-libinput \
+     libinput \
+#     libinput-tools \
      udev \
-     libevdev2 \
+     libinput-udev \
+     libevdev \
      evtest \
 ### Window, mouse, keyboard management
      openbox \
      onboard \
-     dconf-cli \
      unclutter-xfixes \
-     fonts-dejavu \
+     ttf-dejavu \
 ### Linux utils
+     bash \
      util-linux \
-     procps \
-     psmisc \
      patch \
      scrot \
+### Full Timezone info
+     icu-data-full \
 ### Python libraries
-     python3-pip \
-     python3-xlib \
-     python3-aiohttp \
+    py3-pip \
+    py3-xlib \
 ### Sound
      pulseaudio-utils \
-### VNC (for debugging) - run: x11vnc -display :0 -forever &
-     x11vnc \
-### Browser
+#     alsa-utils alsa-plugins-pulse \
+### Video
+#     gstreamer-tools \
+#     gst-libav \
+### VNC (for debugging) - run: x11vnc -display :0 -forever & \
+      x11vnc \
+# Browser
      chromium \
-     fonts-noto \
-     fonts-noto-color-emoji \
-     luakit \
-   && rm -rf /var/lib/apt/lists/*
+     chromium-swiftshader \
+   && apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.21/community luakit=2.3.6-r0 \
+   && rm -rf /var/cache/apk/*
 
 #===============================================================================
 
@@ -82,6 +86,7 @@ RUN chmod a+x /run.sh
 COPY mouse_touch_inputs.py gesture_commands.json /
 COPY rest_server.py /
 COPY browser_ctl.py chromium_watchdog.py chromium_startup_diag.py target_url.py /
+RUN pip install --no-cache-dir  --break-system-packages aiohttp #Required for rest_server.py
 
 #### Patches
 # Need to patch 'unique_instance.lua' so that new instance urls overwrite active url rather than add new tab

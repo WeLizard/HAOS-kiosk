@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.3.2-welizard.84 - March 2026
+
+- **Clean restart from upstream.** Reset Dockerfile and run.sh to
+  upstream puterboy/HAOS-kiosk baseline (Alpine, no build.yaml).
+- Add Chromium + WebGL support with minimal additions:
+  `chromium`, `chromium-swiftshader`, `mesa-vulkan-swrast`,
+  `vulkan-loader`, `mesa-gl` — only software Vulkan (lavapipe),
+  no hardware GPU drivers.
+- Add `browser_engine` option (chromium/luakit, default: chromium).
+- Chromium launched with minimal kiosk flags + `--enable-unsafe-swiftshader`
+  + `--ignore-gpu-blocklist`. No forced GL/ANGLE backend — ANGLE
+  auto-detects lavapipe for software WebGL.
+- Make `ha_username`/`ha_password` optional (Chromium can use existing
+  HA sessions without credentials).
+- Support absolute URLs in `ha_dashboard` (e.g. `http://host:port/scene/`).
+
 ## v1.3.2-welizard.80 - March 2026
 
 - **Switch base image from Alpine to Debian bookworm (glibc).**

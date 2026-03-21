@@ -3,7 +3,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.2-welizard.34
+# Version: 1.3.0
 # Copyright Jeff Kosowsky
 # Date: February 2026
 #
@@ -83,11 +83,7 @@ trap cleanup HUP INT QUIT ABRT TERM EXIT
 ################################################################################
 #### Variables
 BROWSER=""
-declare -a BROWSER_FLAGS=()
-BROWSER_PROCESS_MATCH=""
-CHROMIUM_DEVTOOLS_PORT="${CHROMIUM_DEVTOOLS_PORT:-9222}"
-CHROMIUM_PROFILE_DIR="${CHROMIUM_PROFILE_DIR:-/config/chromium-profile}"
-CHROMIUM_STARTUP_DIAG="${CHROMIUM_STARTUP_DIAG:-true}"
+BROWSER_FLAGS=""
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
@@ -131,18 +127,8 @@ load_config_var HA_URL "http://localhost:8123"
 load_config_var HA_DASHBOARD ""
 load_config_var LOGIN_DELAY 1.0
 load_config_var ZOOM_LEVEL 100
-load_config_var BROWSER_REFRESH 0
-load_config_var BROWSER_ENGINE "chromium"
-load_config_var CHROMIUM_PROFILE "intel_hwaccel"
-load_config_var CHROMIUM_USE_GL "auto"
-load_config_var CHROMIUM_ANGLE_BACKEND "default"
-load_config_var CHROMIUM_ENABLE_GPU_RASTERIZATION false
-load_config_var CHROMIUM_IGNORE_GPU_BLOCKLIST false
-load_config_var CHROMIUM_DISABLE_SKIA_RENDERER false
-load_config_var CHROMIUM_DISABLE_GPU_COMPOSITING false
-load_config_var CHROMIUM_DISABLE_OOP_RASTERIZATION false
-load_config_var CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER false
-load_config_var SCREEN_TIMEOUT 0  # Default to 0 (never blank)
+load_config_var BROWSER_REFRESH 600
+load_config_var SCREEN_TIMEOUT 600  # Default to 600 seconds
 load_config_var OUTPUT_NUMBER 1  # Which *CONNECTED* Physical video output to use (Defaults to 1)
 #NOTE: By only considering *CONNECTED* output, this maximizes the chance of finding an output
 #      without any need to change configs. Set to 1, unless you have multiple video outputs connected.
@@ -153,7 +139,7 @@ load_config_var ROTATE_DISPLAY normal
 load_config_var MAP_TOUCH_INPUTS true
 load_config_var CURSOR_TIMEOUT 5  # Default to 5 seconds
 load_config_var KEYBOARD_LAYOUT us
-load_config_var ONSCREEN_KEYBOARD true
+load_config_var ONSCREEN_KEYBOARD false
 load_config_var SAVE_ONSCREEN_CONFIG true
 load_config_var XORG_CONF ""
 load_config_var XORG_APPEND_REPLACE append
@@ -164,375 +150,41 @@ load_config_var REST_BEARER_TOKEN "" 1  # Mask token in log
 load_config_var COMMAND_WHITELIST "^$"  # Default is no commands allowed
 load_config_var DEBUG_MODE false
 load_config_var VNC_SERVER ""  1 #Mask password in log
+load_config_var BROWSER_ENGINE "chromium"
 
-apply_chromium_profile() {
-    case "${CHROMIUM_PROFILE,,}" in
-        swiftshader_scene)
-            # Pure software WebGL via SwANGLE (ANGLE + SwiftShader Vulkan).
-            # No hardware GPU required. Fallback for environments without /dev/dri.
-            CHROMIUM_USE_GL="angle"
-            CHROMIUM_ANGLE_BACKEND="swiftshader"
-            CHROMIUM_ENABLE_GPU_RASTERIZATION=false
-            CHROMIUM_IGNORE_GPU_BLOCKLIST=false
-            CHROMIUM_DISABLE_SKIA_RENDERER=false
-            CHROMIUM_DISABLE_GPU_COMPOSITING=true
-            CHROMIUM_DISABLE_OOP_RASTERIZATION=true
-            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=true
-            ;;
-        recovery_baseline)
-            # Reproduce the early c6378e1 Chromium launch stack as closely as
-            # possible while keeping current target URL resolution.
-            CHROMIUM_USE_GL="angle"
-            CHROMIUM_ANGLE_BACKEND="default"
-            CHROMIUM_ENABLE_GPU_RASTERIZATION=true
-            CHROMIUM_IGNORE_GPU_BLOCKLIST=true
-            CHROMIUM_DISABLE_SKIA_RENDERER=false
-            CHROMIUM_DISABLE_GPU_COMPOSITING=false
-            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
-            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
-            ;;
-        legacy_neiri)
-            CHROMIUM_USE_GL="angle"
-            # Chromium 144 on this HDMI path keeps drifting into a broken
-            # ANGLE/Vulkan route. Force the legacy profile onto OpenGL.
-            CHROMIUM_ANGLE_BACKEND="gl"
-            CHROMIUM_ENABLE_GPU_RASTERIZATION=true
-            CHROMIUM_IGNORE_GPU_BLOCKLIST=true
-            CHROMIUM_DISABLE_SKIA_RENDERER=false
-            CHROMIUM_DISABLE_GPU_COMPOSITING=false
-            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
-            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
-            ;;
-        desktop_glx)
-            # Bypass ANGLE entirely and ask Chromium to use the native X11
-            # desktop OpenGL path directly. This is the narrow follow-up to
-            # the confirmed .46 ANGLE failure chain.
-            CHROMIUM_USE_GL="desktop"
-            CHROMIUM_ANGLE_BACKEND="default"
-            CHROMIUM_ENABLE_GPU_RASTERIZATION=false
-            CHROMIUM_IGNORE_GPU_BLOCKLIST=false
-            CHROMIUM_DISABLE_SKIA_RENDERER=false
-            CHROMIUM_DISABLE_GPU_COMPOSITING=false
-            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
-            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
-            ;;
-        intel_hwaccel)
-            # Hardware-accelerated WebGL via ANGLE on Intel GPU (Debian/glibc).
-            # ANGLE auto-selects the best Vulkan backend (ANV for Intel).
-            # mesa-vulkan-drivers provides ANV (hardware) + lavapipe (fallback).
-            CHROMIUM_USE_GL="angle"
-            CHROMIUM_ANGLE_BACKEND="default"
-            CHROMIUM_ENABLE_GPU_RASTERIZATION=false
-            CHROMIUM_IGNORE_GPU_BLOCKLIST=true
-            CHROMIUM_DISABLE_SKIA_RENDERER=false
-            CHROMIUM_DISABLE_GPU_COMPOSITING=false
-            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
-            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
-            ;;
-        minimal)
-            CHROMIUM_USE_GL="auto"
-            CHROMIUM_ANGLE_BACKEND="default"
-            CHROMIUM_ENABLE_GPU_RASTERIZATION=false
-            CHROMIUM_IGNORE_GPU_BLOCKLIST=false
-            CHROMIUM_DISABLE_SKIA_RENDERER=false
-            CHROMIUM_DISABLE_GPU_COMPOSITING=false
-            CHROMIUM_DISABLE_OOP_RASTERIZATION=false
-            CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
-            ;;
-        custom)
-            ;;
-        *)
-            bashio::log.error "Unsupported CHROMIUM_PROFILE='$CHROMIUM_PROFILE'"
-            exit 1
-            ;;
-    esac
-}
-
-apply_chromium_profile
-bashio::log.info "Effective Chromium profile: profile=$CHROMIUM_PROFILE use_gl=$CHROMIUM_USE_GL angle_backend=$CHROMIUM_ANGLE_BACKEND enable_gpu_rasterization=$CHROMIUM_ENABLE_GPU_RASTERIZATION ignore_gpu_blocklist=$CHROMIUM_IGNORE_GPU_BLOCKLIST disable_skia=$CHROMIUM_DISABLE_SKIA_RENDERER disable_gpu_compositing=$CHROMIUM_DISABLE_GPU_COMPOSITING disable_oop_rasterization=$CHROMIUM_DISABLE_OOP_RASTERIZATION unsafe_swiftshader=$CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER"
-
-HA_TARGET_URL="$(python3 /target_url.py default 2>/dev/null || true)"
-if [ -z "$HA_TARGET_URL" ]; then
-    bashio::log.warning "Failed to resolve HA target URL via target_url.py; falling back to about:blank"
-    HA_TARGET_URL="about:blank"
-fi
-export HA_TARGET_URL
-bashio::log.info "HA_TARGET_URL=$HA_TARGET_URL"
-
-# Resolve optional HA auto-login mode.
-# Auto-login is enabled only when both username and password are configured.
-HA_AUTO_LOGIN=true
-if [ -z "$HA_USERNAME" ] && [ -z "$HA_PASSWORD" ]; then
-    HA_AUTO_LOGIN=false
-    bashio::log.info "HA auto-login disabled: credentials not configured"
-elif [ -z "$HA_USERNAME" ] || [ -z "$HA_PASSWORD" ]; then
-    HA_AUTO_LOGIN=false
-    bashio::log.warning "HA auto-login disabled: both HA_USERNAME and HA_PASSWORD are required"
-fi
-export HA_AUTO_LOGIN
-bashio::log.info "HA_AUTO_LOGIN=$HA_AUTO_LOGIN"
-
+# Resolve browser binary and flags based on engine
 case "${BROWSER_ENGINE,,}" in
     chromium|chrome)
-        BROWSER_ENGINE="chromium"
+        if command -v chromium-browser >/dev/null 2>&1; then
+            BROWSER="chromium-browser"
+        elif command -v chromium >/dev/null 2>&1; then
+            BROWSER="chromium"
+        else
+            bashio::log.error "Chromium requested but not found in container"
+            exit 1
+        fi
+        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --enable-unsafe-swiftshader --ignore-gpu-blocklist"
+        bashio::log.info "Using browser engine: chromium [$BROWSER]"
+        bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo unknown)"
+        bashio::log.info "Chromium flags: $BROWSER_FLAGS"
         ;;
     luakit)
-        BROWSER_ENGINE="luakit"
+        BROWSER="luakit"
+        BROWSER_FLAGS=""
+        bashio::log.info "Using browser engine: luakit"
         ;;
     *)
-        bashio::log.error "Unsupported BROWSER_ENGINE='$BROWSER_ENGINE' (expected chromium or luakit)"
+        bashio::log.error "Unknown BROWSER_ENGINE='$BROWSER_ENGINE' (expected chromium or luakit)"
         exit 1
         ;;
 esac
 
-export BROWSER_ENGINE
-export CHROMIUM_DEVTOOLS_PORT
-export CHROMIUM_PROFILE_DIR
-export CHROMIUM_PROFILE
-export CHROMIUM_USE_GL
-export CHROMIUM_ANGLE_BACKEND
-export CHROMIUM_STARTUP_DIAG
-
-is_recovery_baseline_profile() {
-    [ "${CHROMIUM_PROFILE,,}" = "recovery_baseline" ]
-}
-
-append_chromium_flag_if_true() {
-    local enabled="$1"
-    local flag="$2"
-
-    case "${enabled,,}" in
-        true|1|yes|on)
-            BROWSER_FLAGS+=("$flag")
-            ;;
-    esac
-}
-
-append_chromium_feature_if_true() {
-    local enabled="$1"
-    local feature="$2"
-    local target_name="$3"
-
-    case "${enabled,,}" in
-        true|1|yes|on)
-            eval "$target_name+=(\"$feature\")"
-            ;;
-    esac
-}
-
-resolve_browser_binary() {
-    case "$BROWSER_ENGINE" in
-        chromium)
-            local -a disabled_features=()
-            local -a enabled_features=()
-
-            if command -v chromium-browser >/dev/null 2>&1; then
-                BROWSER="chromium-browser"
-            elif command -v chromium >/dev/null 2>&1; then
-                BROWSER="chromium"
-            else
-                bashio::log.error "Chromium requested but neither 'chromium-browser' nor 'chromium' found in container"
-                exit 1
-            fi
-            BROWSER_FLAGS=(
-                --no-sandbox
-                --no-first-run
-                --no-default-browser-check
-                --disable-session-crashed-bubble
-                --disable-infobars
-                --password-store=basic
-                --remote-debugging-address=127.0.0.1
-                --remote-debugging-port="$CHROMIUM_DEVTOOLS_PORT"
-                --user-data-dir="$CHROMIUM_PROFILE_DIR"
-                --window-position=0,0
-                --start-fullscreen
-                --kiosk
-                --ozone-platform=x11
-                --touch-events=enabled
-            )
-
-            if is_recovery_baseline_profile; then
-                disabled_features+=(
-                    Translate
-                    TranslateUI
-                    AutofillServerCommunication
-                    PasswordManagerOnboarding
-                    PasswordCheck
-                    PasswordManagerRedesign
-                    OptimizationGuideModelDownloading
-                )
-                BROWSER_FLAGS+=(
-                    --disable-save-password-bubble
-                    --disable-sync
-                    --disable-search-engine-choice-screen
-                    --disable-application-cache
-                    --aggressive-cache-discard
-                    --disk-cache-dir=/tmp/haoskiosk-cache
-                    --disk-cache-size=1
-                    --media-cache-size=1
-                )
-            fi
-
-            append_chromium_flag_if_true "$CHROMIUM_ENABLE_GPU_RASTERIZATION" --enable-gpu-rasterization
-            append_chromium_flag_if_true "$CHROMIUM_IGNORE_GPU_BLOCKLIST" --ignore-gpu-blocklist
-            append_chromium_flag_if_true "$CHROMIUM_DISABLE_GPU_COMPOSITING" --disable-gpu-compositing
-            append_chromium_flag_if_true "$CHROMIUM_DISABLE_OOP_RASTERIZATION" --disable-oop-rasterization
-            append_chromium_feature_if_true "$CHROMIUM_DISABLE_SKIA_RENDERER" UseSkiaRenderer disabled_features
-
-            if [ "${CHROMIUM_PROFILE,,}" = "legacy_neiri" ] || [ "${CHROMIUM_PROFILE,,}" = "swiftshader_scene" ]; then
-                # Chromium 144 on this Alpine/X11 HDMI path still tries to
-                # initialize Vulkan and then loses the GL context. Explicitly
-                # block the modern Vulkan/Graphite route for these narrow
-                # display experiments.
-                disabled_features+=(Vulkan)
-                BROWSER_FLAGS+=(--disable-skia-graphite)
-            fi
-
-            # intel_hwaccel on Debian/glibc: ANGLE auto-selects the best
-            # available Vulkan backend (Intel ANV if /dev/dri available,
-            # lavapipe otherwise). No feature overrides needed.
-
-            if [ "${#enabled_features[@]}" -gt 0 ]; then
-                local enable_features_csv
-                enable_features_csv="$(IFS=,; echo "${enabled_features[*]}")"
-                BROWSER_FLAGS+=("--enable-features=${enable_features_csv}")
-            fi
-
-            if [ "${#disabled_features[@]}" -gt 0 ]; then
-                local disable_features_csv
-                disable_features_csv="$(IFS=,; echo "${disabled_features[*]}")"
-                BROWSER_FLAGS+=("--disable-features=${disable_features_csv}")
-            fi
-
-            case "${CHROMIUM_USE_GL,,}" in
-                ""|auto)
-                    ;;
-                desktop|egl|angle|swiftshader)
-                    BROWSER_FLAGS+=("--use-gl=${CHROMIUM_USE_GL,,}")
-                    ;;
-                *)
-                    bashio::log.error "Unsupported CHROMIUM_USE_GL='$CHROMIUM_USE_GL'"
-                    exit 1
-                    ;;
-            esac
-
-            if [ "${CHROMIUM_USE_GL,,}" = "angle" ]; then
-                case "${CHROMIUM_ANGLE_BACKEND,,}" in
-                    default|gl|gles|vulkan|swiftshader|swiftshader-webgl)
-                        BROWSER_FLAGS+=("--use-angle=${CHROMIUM_ANGLE_BACKEND,,}")
-                        ;;
-                    *)
-                        bashio::log.error "Unsupported CHROMIUM_ANGLE_BACKEND='$CHROMIUM_ANGLE_BACKEND'"
-                        exit 1
-                        ;;
-                esac
-            fi
-
-            if [ "${CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER,,}" = "true" ]; then
-                if [ "${CHROMIUM_USE_GL,,}" = "angle" ] && [[ "${CHROMIUM_ANGLE_BACKEND,,}" == swiftshader* ]]; then
-                    BROWSER_FLAGS+=(--enable-unsafe-swiftshader)
-                else
-                    bashio::log.warning "Ignoring CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER because it only applies to use-gl=angle + use-angle=swiftshader*"
-                fi
-            fi
-
-            BROWSER_PROCESS_MATCH='chromium'
-            ;;
-        luakit)
-            BROWSER="luakit"
-            BROWSER_FLAGS=()
-            BROWSER_PROCESS_MATCH='luakit'
-            ;;
-    esac
-}
-
-browser_process_running() {
-    pgrep -f -- "$BROWSER_PROCESS_MATCH" > /dev/null 2>&1
-}
-
-clear_chromium_runtime_cache() {
-    [ "$BROWSER_ENGINE" = "chromium" ] || return 0
-
-    mkdir -p "$CHROMIUM_PROFILE_DIR"
-
-    local cache_paths=(
-        /tmp/haoskiosk-cache
-        "$CHROMIUM_PROFILE_DIR/Cache"
-        "$CHROMIUM_PROFILE_DIR/Code Cache"
-        "$CHROMIUM_PROFILE_DIR/GPUCache"
-        "$CHROMIUM_PROFILE_DIR/DawnCache"
-        "$CHROMIUM_PROFILE_DIR/GrShaderCache"
-        "$CHROMIUM_PROFILE_DIR/ShaderCache"
-        "$CHROMIUM_PROFILE_DIR/Default/Cache"
-        "$CHROMIUM_PROFILE_DIR/Default/Code Cache"
-        "$CHROMIUM_PROFILE_DIR/Default/GPUCache"
-        "$CHROMIUM_PROFILE_DIR/Default/DawnCache"
-        "$CHROMIUM_PROFILE_DIR/Default/GrShaderCache"
-        "$CHROMIUM_PROFILE_DIR/Default/Service Worker"
-    )
-
-    local cache_path
-    for cache_path in "${cache_paths[@]}"; do
-        rm -rf "$cache_path"
-    done
-}
-
-seed_chromium_preferences() {
-    [ "$BROWSER_ENGINE" = "chromium" ] || return 0
-    is_recovery_baseline_profile || return 0
-
-    local default_dir="$CHROMIUM_PROFILE_DIR/Default"
-    mkdir -p "$default_dir"
-
-    cat > "$default_dir/Preferences" <<'EOF'
-{
-  "autofill": {
-    "enabled": false
-  },
-  "browser": {
-    "check_default_browser": false,
-    "has_seen_welcome_page": true
-  },
-  "credentials_enable_service": false,
-  "distribution": {
-    "import_bookmarks": false,
-    "import_history": false,
-    "import_search_engine": false,
-    "make_chrome_default_for_user": false,
-    "skip_first_run_ui": true
-  },
-  "profile": {
-    "default_content_setting_values": {
-      "notifications": 2
-    },
-    "password_manager_enabled": false
-  },
-  "safebrowsing": {
-    "enabled": false
-  },
-  "sync_promo": {
-    "show_on_first_run_allowed": false
-  },
-  "translate": {
-    "enabled": false
-  }
-}
-EOF
-}
-
-resolve_browser_binary
-bashio::log.info "Using browser engine: $BROWSER_ENGINE [$BROWSER]"
-if [ "$BROWSER_ENGINE" = "chromium" ]; then
-    chromium_package="$(apk info -v chromium 2>/dev/null | head -n 1 || true)"
-    chromium_version="$("$BROWSER" --version 2>/dev/null | head -n 1 || true)"
-    if [ -n "$chromium_package" ]; then
-        bashio::log.info "Chromium package: $chromium_package"
-    fi
-    if [ -n "$chromium_version" ]; then
-        bashio::log.info "Chromium version: $chromium_version"
-    fi
-    bashio::log.info "Chromium tuning: profile=$CHROMIUM_PROFILE use_gl=$CHROMIUM_USE_GL angle_backend=$CHROMIUM_ANGLE_BACKEND enable_gpu_rasterization=$CHROMIUM_ENABLE_GPU_RASTERIZATION ignore_gpu_blocklist=$CHROMIUM_IGNORE_GPU_BLOCKLIST disable_skia=$CHROMIUM_DISABLE_SKIA_RENDERER disable_gpu_compositing=$CHROMIUM_DISABLE_GPU_COMPOSITING disable_oop_rasterization=$CHROMIUM_DISABLE_OOP_RASTERIZATION unsafe_swiftshader=$CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER"
-    bashio::log.info "Chromium launch flags: ${BROWSER_FLAGS[*]}"
+# Validate environment variables set by config.yaml
+# Auto-login requires both username and password; skip validation for Chromium
+# which can use existing HA sessions without credentials.
+if [ "${BROWSER_ENGINE,,}" = "luakit" ] && { [ -z "$HA_USERNAME" ] || [ -z "$HA_PASSWORD" ]; }; then
+    bashio::log.error "Error: HA_USERNAME and HA_PASSWORD must be set for luakit"
+    exit 1
 fi
 
 ################################################################################
@@ -575,25 +227,22 @@ echo "export DBUS_SESSION_BUS_ADDRESS='$DBUS_SESSION_BUS_ADDRESS'" >> "$HOME/.pr
 #       in particular will block HAOS updates
 if [ -e "/dev/tty0" ]; then
     bashio::log.info "Attempting to remount /dev as 'rw' so we can (temporarily) delete /dev/tty0..."
-    if mount -o remount,rw /dev 2>/dev/null && rm -f /dev/tty0 ; then
-        TTY0_DELETED=1
-        bashio::log.info "Deleted /dev/tty0 successfully..."
-    else
-        bashio::log.warning "/dev remount failed (expected on Debian/glibc) — skipping tty0 removal, X may still work"
+    mount -o remount,rw /dev
+    if ! mount -o remount,rw /dev ; then
+        bashio::log.error "Failed to remount /dev as read-write..."
+        exit 1
     fi
+    if  ! rm -f /dev/tty0 ; then
+        bashio::log.error "Failed to delete /dev/tty0..."
+        exit 1
+    fi
+    TTY0_DELETED=1
+    bashio::log.info "Deleted /dev/tty0 successfully..."
 fi
 
 #### Start udev (used by X)
 bashio::log.info "Starting 'udevd' and (re-)triggering..."
-UDEVD_BIN=""
-if command -v udevd >/dev/null 2>&1; then
-    UDEVD_BIN="udevd"
-elif [ -x /lib/systemd/systemd-udevd ]; then
-    UDEVD_BIN="/lib/systemd/systemd-udevd"
-elif command -v systemd-udevd >/dev/null 2>&1; then
-    UDEVD_BIN="systemd-udevd"
-fi
-if [ -z "$UDEVD_BIN" ] || ! "$UDEVD_BIN" --daemon || ! udevadm trigger; then
+if ! udevd --daemon || ! udevadm trigger; then
     bashio::log.warning "WARNING: Failed to start udevd or trigger udev, input devices may not work"
 fi
 udevadm settle --timeout=10  #Wait for udev event processing to complete
@@ -655,7 +304,7 @@ libinput list-devices 2>/dev/null | awk '
     gsub(/^[ \t]+|[ \t]+$/, "", type)      # Trim capabilities (i.e., device type)
   }
   END { print_device() }  # Print last device
-' | sort -V | if command -v column >/dev/null 2>&1; then column -t -s $'\t'; else cat; fi
+' | sort -V | column -t -s $'\t'
 
 ## Determine main display card
 bashio::log.info "DRM video cards:"
@@ -680,21 +329,6 @@ done
 if [ -z "$selected_card" ]; then
     bashio::log.info "ERROR: No connected video card detected. Exiting.."
     exit 1
-fi
-
-# GPU / Vulkan diagnostics
-bashio::log.info "GPU diagnostics:"
-for rnode in /dev/dri/renderD*; do
-    if [ -c "$rnode" ]; then
-        bashio::log.info "  Render node: $rnode (perms=$(stat -c '%a' "$rnode" 2>/dev/null || echo '?'))"
-    fi
-done
-bashio::log.info "  Vulkan ICDs installed:"
-for icd in /usr/share/vulkan/icd.d/*.json; do
-    [ -f "$icd" ] && bashio::log.info "    $(basename "$icd")"
-done
-if [ -n "${VK_ICD_FILENAMES:-}" ]; then
-    bashio::log.info "  VK_ICD_FILENAMES=$VK_ICD_FILENAMES"
 fi
 
 #### Start Xorg in the background
@@ -834,14 +468,12 @@ fi
 bashio::log.info "$WINMGR window manager started successfully..."
 
 #### Configure screen timeout (Note: DPMS needs to be enabled/disabled *after* starting window manager)
+xset +dpms  #Turn on DPMS
+xset s "$SCREEN_TIMEOUT"
+xset dpms "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT"
 if [ "$SCREEN_TIMEOUT" -eq 0 ]; then
-    xset s off
-    xset -dpms
-    bashio::log.info "Screen timeout disabled (DPMS off)..."
+    bashio::log.info "Screen timeout disabled..."
 else
-    xset +dpms
-    xset s "$SCREEN_TIMEOUT"
-    xset dpms "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT"
     bashio::log.info "Screen timeout after $SCREEN_TIMEOUT seconds..."
 fi
 
@@ -1064,32 +696,24 @@ fi
 
 #### Start browser (or debug mode)  and wait/sleep
 if [ "$DEBUG_MODE" != true ]; then
+    ### Resolve target URL
+    # If HA_DASHBOARD is an absolute URL, use it directly; otherwise combine with HA_URL
+    if [[ "$HA_DASHBOARD" =~ ^https?:// ]]; then
+        HA_TARGET_URL="$HA_DASHBOARD"
+    elif [ -n "$HA_DASHBOARD" ]; then
+        HA_TARGET_URL="$HA_URL/$HA_DASHBOARD"
+    else
+        HA_TARGET_URL="$HA_URL"
+    fi
+
     ### Run browser in the background and wait for process to exit
-    if [ "$BROWSER_ENGINE" = "chromium" ]; then
-        mkdir -p "$CHROMIUM_PROFILE_DIR"
-        rm -f "$CHROMIUM_PROFILE_DIR"/Singleton*
-        clear_chromium_runtime_cache
-        seed_chromium_preferences
-    fi
-
-    "$BROWSER" "${BROWSER_FLAGS[@]}" "$HA_TARGET_URL" &
+    # shellcheck disable=SC2086
+    $BROWSER ${BROWSER_FLAGS:+$BROWSER_FLAGS} "$HA_TARGET_URL" &
     bashio::log.info "Launching $BROWSER browser(PID=$!): $HA_TARGET_URL"
-
-    if [ "$BROWSER_ENGINE" = "chromium" ]; then
-        python3 -u /chromium_watchdog.py &
-        bashio::log.info "Launching Chromium watchdog(PID=$!) on DevTools port $CHROMIUM_DEVTOOLS_PORT"
-
-        case "${CHROMIUM_STARTUP_DIAG,,}" in
-            true|1|yes|on)
-                python3 -u /chromium_startup_diag.py &
-                bashio::log.info "Launching Chromium startup diagnostics(PID=$!)"
-                ;;
-        esac
-    fi
 
     count=0
     while true; do  # Wait for all browser processes to exit
-        if browser_process_running; then
+        if pgrep -f -- "^$BROWSER " > /dev/null 2>&1; then
             count=0
         else
             count=$((count + 1))
