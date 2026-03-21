@@ -575,17 +575,12 @@ echo "export DBUS_SESSION_BUS_ADDRESS='$DBUS_SESSION_BUS_ADDRESS'" >> "$HOME/.pr
 #       in particular will block HAOS updates
 if [ -e "/dev/tty0" ]; then
     bashio::log.info "Attempting to remount /dev as 'rw' so we can (temporarily) delete /dev/tty0..."
-    mount -o remount,rw /dev
-    if ! mount -o remount,rw /dev ; then
-        bashio::log.error "Failed to remount /dev as read-write..."
-        exit 1
+    if mount -o remount,rw /dev 2>/dev/null && rm -f /dev/tty0 ; then
+        TTY0_DELETED=1
+        bashio::log.info "Deleted /dev/tty0 successfully..."
+    else
+        bashio::log.warning "/dev remount failed (expected on Debian/glibc) — skipping tty0 removal, X may still work"
     fi
-    if  ! rm -f /dev/tty0 ; then
-        bashio::log.error "Failed to delete /dev/tty0..."
-        exit 1
-    fi
-    TTY0_DELETED=1
-    bashio::log.info "Deleted /dev/tty0 successfully..."
 fi
 
 #### Start udev (used by X)
