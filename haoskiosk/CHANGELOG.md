@@ -1,12 +1,12 @@
 # Changelog
 
-## v1.3.2-welizard.93 - March 2026
+## v1.3.2-welizard.94 - March 2026
 
-- Fix X server startup on Debian: add `-sharevts` flag to Xorg to bypass
-  `/dev/tty0` VT management that fails in containers (devtmpfs read-only,
-  bind mounts blocked by security).
-- Add `xserver-xorg-legacy` package and `Xwrapper.config` for proper
-  container Xorg permissions.
+- Fix X server startup on Debian: call Xorg binary directly at
+  `/usr/lib/xorg/Xorg` (bypass any wrapper), pass `-sharevts -keeptty vt1`
+  to completely bypass `/dev/tty0` VT management. The `vt1` argument sets
+  VTnum before parse_vt_settings runs, so tty0 is never opened.
+- Remove `xserver-xorg-legacy` (its Xorg.wrap may intercept flags).
 
 ## v1.3.2-welizard.91 - March 2026
 
