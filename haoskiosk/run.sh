@@ -164,6 +164,16 @@ case "$BROWSER_ENGINE" in
             BROWSER="chromium"
         fi
         BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --enable-unsafe-swiftshader --ignore-gpu-blocklist"
+
+        # Force lavapipe (software Vulkan) — Intel N150 (0x46d4) not supported by
+        # mesa's hardware Vulkan driver (intel_hasvk) in Debian Bookworm.
+        # ANGLE/SwANGLE needs a working Vulkan ICD for software WebGL.
+        LVP_ICD="/usr/share/vulkan/icd.d/lvp_icd.x86_64.json"
+        if [ -f "$LVP_ICD" ]; then
+            export VK_ICD_FILENAMES="$LVP_ICD"
+            bashio::log.info "Forcing lavapipe software Vulkan: $LVP_ICD"
+        fi
+
         bashio::log.info "Using browser engine: chromium [$BROWSER]"
         bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo 'unknown')"
         bashio::log.info "Chromium flags: $BROWSER_FLAGS"

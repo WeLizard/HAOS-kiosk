@@ -47,6 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
      util-linux \
      bsdmainutils \
      dconf-cli \
+     libglib2.0-bin \
      patch \
      scrot \
      procps \
