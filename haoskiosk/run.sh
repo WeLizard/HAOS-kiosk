@@ -66,6 +66,7 @@ bashio::log.info "Core=$(echo "$ha_info" | jq -r '.homeassistant')  HAOS=$(echo 
 
 #### Clean up on exit:
 TTY0_DELETED=""  #Need to set to empty string since runs with nounset=on (like set -u)
+TTY0_HIDDEN=""
 ONBOARD_CONFIG_FILE="/config/onboard-settings.dconf"
 cleanup() {
     local exit_code=$?
@@ -75,6 +76,7 @@ cleanup() {
     fi
     jobs -p | xargs -r kill
     [ -n "$TTY0_DELETED" ] && mknod -m 620 /dev/tty0 c 4 0
+    [ -n "$TTY0_HIDDEN" ] && umount /dev/tty0 2>/dev/null
     rm -f /root/.local/share/luakit/cookies.db  # Remove cookie storage (not really necessary, but just in case...)
     exit "$exit_code"
 }
@@ -244,12 +246,15 @@ echo "export DBUS_SESSION_BUS_ADDRESS='$DBUS_SESSION_BUS_ADDRESS'" >> "$HOME/.pr
 # Note: Do *not* later remount as 'ro' since that affect the root fs and
 #       in particular will block HAOS updates
 if [ -e "/dev/tty0" ]; then
-    bashio::log.info "Attempting to remount /dev as 'rw' so we can (temporarily) delete /dev/tty0..."
+    bashio::log.info "Hiding /dev/tty0 so X can start in container..."
     if mount -o remount,rw /dev 2>/dev/null && rm -f /dev/tty0 ; then
         TTY0_DELETED=1
         bashio::log.info "Deleted /dev/tty0 successfully..."
+    elif mount --bind /dev/null /dev/tty0 2>/dev/null ; then
+        TTY0_HIDDEN=1
+        bashio::log.info "Hidden /dev/tty0 via bind mount..."
     else
-        bashio::log.warning "Could not delete /dev/tty0 (non-fatal, continuing)..."
+        bashio::log.warning "Could not hide /dev/tty0, X may fail to start"
     fi
 fi
 
@@ -401,6 +406,8 @@ if [ -n "$TTY0_DELETED" ]; then
     else
         bashio::log.error "Failed to restore /dev/tty0..."
     fi
+elif [ -n "$TTY0_HIDDEN" ]; then
+    umount /dev/tty0 2>/dev/null && bashio::log.info "Unhidden /dev/tty0..."
 fi
 
 if ! xset q >/dev/null 2>&1; then
