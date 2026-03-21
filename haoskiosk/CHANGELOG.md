@@ -1,14 +1,24 @@
 # Changelog
 
+## v1.3.2-welizard.80 - March 2026
+
+- **Switch base image from Alpine to Debian bookworm (glibc).**
+  Alpine's musl libc causes Chromium renderer crashes (SIGILL) on
+  WebGL/WASM workloads. Chromium is built and tested against glibc;
+  Debian eliminates this entire class of bugs.
+- Rewrite Dockerfile for Debian packages (`apt-get` instead of `apk`).
+- Use Chromium 146 from Debian bookworm repos (glibc-compiled).
+- `intel_hwaccel` profile: ANGLE + auto-detect backend with
+  `--ignore-gpu-blocklist`. On Intel N150, ANGLE selects ANV (Intel
+  Vulkan) for hardware-accelerated WebGL.
+- `swiftshader_scene` profile: modernize to SwANGLE (`--use-angle=swiftshader`)
+  for pure software WebGL fallback.
+- Replace `pip install aiohttp` with `python3-aiohttp` Debian package.
+- Limit arch to amd64 + aarch64 (Debian HA base images).
+
 ## v1.3.2-welizard.79 - March 2026
 
-- Revert to default HAOS base image (Alpine 3.23) — remove `build.yaml`
-  that pinned Alpine 3.21. Chromium 136 on Alpine 3.21 crashes on startup
-  with SIGTRAP (never opens a window).
-- Install Chromium from Alpine 3.22 repos (Chromium 142) instead of 3.21
-  (136) or default 3.23 (146). Chromium 146 has SIGILL on musl WebGL/WASM,
-  Chromium 136 has SIGTRAP on startup. Chromium 142 is closest to the
-  confirmed working Chromium 144 from .52/.53 era.
+- (build failed — luakit version pin incompatible with Alpine 3.22 repos)
 
 ## v1.3.2-welizard.78 - March 2026
 

@@ -168,13 +168,13 @@ load_config_var VNC_SERVER ""  1 #Mask password in log
 apply_chromium_profile() {
     case "${CHROMIUM_PROFILE,,}" in
         swiftshader_scene)
-            # Reproduce the last confirmed HDMI-visible .40 runtime:
-            # host compositor guards from .38 plus SwiftShader WebGL for avatar.
+            # Pure software WebGL via SwANGLE (ANGLE + SwiftShader Vulkan).
+            # No hardware GPU required. Fallback for environments without /dev/dri.
             CHROMIUM_USE_GL="angle"
-            CHROMIUM_ANGLE_BACKEND="swiftshader-webgl"
+            CHROMIUM_ANGLE_BACKEND="swiftshader"
             CHROMIUM_ENABLE_GPU_RASTERIZATION=false
             CHROMIUM_IGNORE_GPU_BLOCKLIST=false
-            CHROMIUM_DISABLE_SKIA_RENDERER=true
+            CHROMIUM_DISABLE_SKIA_RENDERER=false
             CHROMIUM_DISABLE_GPU_COMPOSITING=true
             CHROMIUM_DISABLE_OOP_RASTERIZATION=true
             CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=true
@@ -217,13 +217,13 @@ apply_chromium_profile() {
             CHROMIUM_ENABLE_UNSAFE_SWIFTSHADER=false
             ;;
         intel_hwaccel)
-            # Clean ANGLE/default profile.  On Alpine 3.22 (Chromium 142)
-            # this auto-selects the working GL path for WebGL.
-            # mesa-vulkan-swrast + vulkan-loader must be installed.
-            CHROMIUM_USE_GL="auto"
+            # Hardware-accelerated WebGL via ANGLE on Intel GPU (Debian/glibc).
+            # ANGLE auto-selects the best Vulkan backend (ANV for Intel).
+            # mesa-vulkan-drivers provides ANV (hardware) + lavapipe (fallback).
+            CHROMIUM_USE_GL="angle"
             CHROMIUM_ANGLE_BACKEND="default"
             CHROMIUM_ENABLE_GPU_RASTERIZATION=false
-            CHROMIUM_IGNORE_GPU_BLOCKLIST=false
+            CHROMIUM_IGNORE_GPU_BLOCKLIST=true
             CHROMIUM_DISABLE_SKIA_RENDERER=false
             CHROMIUM_DISABLE_GPU_COMPOSITING=false
             CHROMIUM_DISABLE_OOP_RASTERIZATION=false
@@ -388,9 +388,9 @@ resolve_browser_binary() {
                 BROWSER_FLAGS+=(--disable-skia-graphite)
             fi
 
-            # (intel_hwaccel uses clean auto/default — Chromium 142 on
-            #  Alpine 3.22 base selects a working GL path without
-            #  needing Vulkan/Graphite feature overrides.)
+            # intel_hwaccel on Debian/glibc: ANGLE auto-selects the best
+            # available Vulkan backend (Intel ANV if /dev/dri available,
+            # lavapipe otherwise). No feature overrides needed.
 
             if [ "${#enabled_features[@]}" -gt 0 ]; then
                 local enable_features_csv

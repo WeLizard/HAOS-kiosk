@@ -3,15 +3,12 @@ name: "HAOS Kiosk Display (Welizard Chromium Fork)"
 description: |
   Chromium-focused Welizard fork of the original HAOS Kiosk Display by
   Jeff Kosowsky for local HAOS dashboard screens and touch displays.
-version: "1.3.2-welizard.79"
+version: "1.3.2-welizard.80"
 slug: "haoskiosk"
 
 arch:
-  - aarch64
   - amd64
-  - armhf
-  - armv7
-  - i386
+  - aarch64
 
 startup: application
 host_network: true
