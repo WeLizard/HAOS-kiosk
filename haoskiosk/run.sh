@@ -381,10 +381,8 @@ if [ "$UDEV_FUNCTIONAL" = false ]; then
         input_sections="${input_sections}
 Section \"InputDevice\"
     Identifier \"evdev-${devname}\"
-    Driver \"libinput\"
+    Driver \"evdev\"
     Option \"Device\" \"${dev}\"
-    Option \"Tapping\" \"on\"
-    Option \"TappingDrag\" \"on\"
 EndSection
 "
         layout_refs="${layout_refs}    InputDevice \"evdev-${devname}\" \"SendCoreEvents\"\n"

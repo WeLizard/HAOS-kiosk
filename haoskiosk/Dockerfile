@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
      x11-xkb-utils \
 ### Input, udev
      xserver-xorg-input-libinput \
+     xserver-xorg-input-evdev \
      libinput10 \
      libinput-tools \
      udev \
