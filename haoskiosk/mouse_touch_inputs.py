@@ -1916,7 +1916,7 @@ class GestureCommand:
 
             prior_match = gesture_cmd.append_gesture_command_list(add_overridden)
             if prior_match is not None:
-                debug(1, f"WARNING: Gesture masked by earlier entry ({"loading anyway" if add_overridden else "dropped"}): {gesture_cmd.sprint_gesture()} < {prior_match.sprint_gesture()}")
+                debug(1, f"WARNING: Gesture masked by earlier entry ({'loading anyway' if add_overridden else 'dropped'}): {gesture_cmd.sprint_gesture()} < {prior_match.sprint_gesture()}")
             if prior_match is None or add_overridden:
                 debug(4, f"Loaded command for gesture: {gesture_cmd}")
                 return True
@@ -2686,7 +2686,7 @@ def _run_subprocess(args: str | Sequence[str], *, shell: bool | None = None, tim
         return result
 
     except subprocess.TimeoutExpired as e:
-        raise CommandError(f"Timeout for '{prog}' after {timeout}s [{"shell" if use_shell else "exec"}]: {description}") from e
+        raise CommandError(f"Timeout for '{prog}' after {timeout}s [{'shell' if use_shell else 'exec'}]: {description}") from e
     except FileNotFoundError as e:
         if use_shell:  # This usually means: binary not found OR syntax error in shell string
             raise CommandError(f"Program '{prog}' not found or shell syntax error: {description}") from e
@@ -2694,7 +2694,7 @@ def _run_subprocess(args: str | Sequence[str], *, shell: bool | None = None, tim
     except PermissionError as e:
         raise CommandError(f"Permission denied for '{prog}': {description}") from e
     except Exception as e:
-        raise CommandError(f"Failed to execute '{prog}' command [{"shell" if use_shell else "exec"}]: {description}") from e
+        raise CommandError(f"Failed to execute '{prog}' command [{'shell' if use_shell else 'exec'}]: {description}") from e
 
     return subprocess.CompletedProcess[str](args=args, returncode=1, stdout="", stderr=str(e),)
 
