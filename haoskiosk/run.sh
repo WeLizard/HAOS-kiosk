@@ -168,12 +168,12 @@ case "${BROWSER_ENGINE,,}" in
             bashio::log.error "Chromium requested but not found in container"
             exit 1
         fi
-        # Alpine uses musl libc whose signal handling is incompatible with
-        # V8's WASM trap handler (SIGSEGV-based bounds checks). Without this
-        # flag, any page loading WebAssembly (e.g. Live2D Cubism Core) crashes
-        # the renderer with SIGILL.  --wasm-enforce-bounds-checks forces V8 to
-        # use inline bounds checks instead of signal traps.
-        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --js-flags=--wasm-enforce-bounds-checks --enable-unsafe-swiftshader"
+        # Force ANGLE to use its OpenGL backend (mesa llvmpipe) instead of
+        # Vulkan (SwiftShader/lavapipe).  SwiftShader's Reactor JIT generates
+        # native x86 code that causes SIGILL on Alpine/musl + Intel N150.
+        # llvmpipe is a stable software GL renderer with no JIT issues.
+        # --js-flags=--wasm-enforce-bounds-checks: musl signal handling fix.
+        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --use-gl=angle --use-angle=gl --js-flags=--wasm-enforce-bounds-checks"
         bashio::log.info "Using browser engine: chromium [$BROWSER]"
         bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo unknown)"
         bashio::log.info "Chromium flags: $BROWSER_FLAGS"
