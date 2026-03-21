@@ -163,7 +163,7 @@ case "$BROWSER_ENGINE" in
         else
             BROWSER="chromium"
         fi
-        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --disable-gpu --enable-logging=stderr --v=1"
+        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --enable-unsafe-swiftshader --ignore-gpu-blocklist --disable-gpu-compositing --enable-logging=stderr --v=1"
 
         # Force lavapipe (software Vulkan) — Intel N150 (0x46d4) not supported by
         # mesa's hardware Vulkan driver (intel_hasvk) in Debian Bookworm.
@@ -789,6 +789,12 @@ if [ "$DEBUG_MODE" != true ]; then
     else
         TARGET_URL="$HA_URL/$HA_DASHBOARD"
     fi
+
+    ### Clear GPU/shader caches to avoid stale state from previous GPU configs
+    rm -rf /config/chromium-profile/Default/GPUCache \
+           /config/chromium-profile/Default/ShaderCache \
+           /config/chromium-profile/Default/Cache 2>/dev/null
+    bashio::log.info "Cleared Chromium GPU/shader/page caches"
 
     ### Run browser in the background and wait for process to exit
     $BROWSER ${BROWSER_FLAGS:+$BROWSER_FLAGS} "$TARGET_URL" &
