@@ -587,7 +587,7 @@ if [[ "$ONSCREEN_KEYBOARD" = true && -n "$SCREEN_WIDTH" && -n "$SCREEN_HEIGHT" ]
     dconf write /org/onboard/auto-show/enabled true  # Auto-show
     dconf write /org/onboard/auto-show/tablet-mode-detection-enabled false  # Show keyboard only in tablet mode
     dconf write /org/onboard/window/force-to-top true  # Always on top
-    gsettings set org.gnome.desktop.interface toolkit-accessibility true  # Disable gnome accessibility popup
+    gsettings set org.gnome.desktop.interface toolkit-accessibility true 2>/dev/null || true  # Disable gnome accessibility popup (gsettings may not be available)
 
     # Default landscape geometry
     dconf write /org/onboard/window/landscape/height "$LAND_HEIGHT"
