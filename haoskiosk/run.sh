@@ -67,6 +67,7 @@ bashio::log.info "Core=$(echo "$ha_info" | jq -r '.homeassistant')  HAOS=$(echo 
 
 #### Clean up on exit:
 TTY0_DELETED=""  #Need to set to empty string since runs with nounset=on (like set -u)
+TTY0_MODE=""
 ONBOARD_CONFIG_FILE="/config/onboard-settings.dconf"
 cleanup() {
     local exit_code=$?
@@ -157,7 +158,11 @@ load_config_var VNC_SERVER ""  1 #Mask password in log
 #### Configure browser engine
 case "$BROWSER_ENGINE" in
     chromium)
-        BROWSER="chromium-browser"
+        if command -v chromium-browser >/dev/null 2>&1; then
+            BROWSER="chromium-browser"
+        else
+            BROWSER="chromium"
+        fi
         BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled"
         bashio::log.info "Using browser engine: chromium [$BROWSER]"
         bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo 'unknown')"
@@ -208,20 +213,32 @@ echo "$DBUS_SESSION_BUS_ADDRESS" >| /tmp/DBUS_SESSION_BUS_ADDRESS
 echo "export DBUS_SESSION_BUS_ADDRESS='$DBUS_SESSION_BUS_ADDRESS'" >> "$HOME/.profile"
 
 #### Handle /dev/tty0 for X server
-# On Debian (glibc), /dev/tty0 is in the devices list (config.yaml) so Xorg
-# can open it directly. We use -sharevts to prevent VT switching.
-# On Alpine (musl), /dev/tty0 must be deleted (upstream hack).
+# Xorg requires /dev/tty0 for VT management. Three strategies:
+# 1. If accessible (device cgroup allows) — use directly with -sharevts
+# 2. If deletable (Alpine: devtmpfs is rw) — delete, then restore after X starts
+# 3. If neither — hide via bind mount in isolated mount namespace (Debian fallback)
+TTY0_MODE=""
 if [ -e "/dev/tty0" ]; then
-    if exec 3>/dev/tty0 2>/dev/null; then
-        exec 3>&-
+    if cat /dev/tty0 >/dev/null 2>&1 || exec 3</dev/tty0 2>/dev/null; then
+        exec 3<&- 2>/dev/null
+        TTY0_MODE="accessible"
         bashio::log.info "/dev/tty0 is accessible, Xorg will use -sharevts"
+    elif mount -o remount,rw /dev 2>/dev/null && rm -f /dev/tty0; then
+        TTY0_MODE="deleted"
+        TTY0_DELETED=1
+        bashio::log.info "Deleted /dev/tty0 successfully (Alpine mode)..."
+    elif mount --bind /dev/null /dev/tty0 2>/dev/null; then
+        TTY0_MODE="hidden"
+        bashio::log.info "Hidden /dev/tty0 via bind mount..."
     else
-        bashio::log.info "Cannot open /dev/tty0, attempting Alpine-style deletion..."
-        if mount -o remount,rw /dev 2>/dev/null && rm -f /dev/tty0; then
-            TTY0_DELETED=1
-            bashio::log.info "Deleted /dev/tty0 successfully..."
+        bashio::log.warning "/dev/tty0 inaccessible, trying unshare mount namespace..."
+        # Last resort: run the entire rest of the script in an isolated mount namespace
+        # where we can bind mount /dev/null over /dev/tty0
+        if unshare --mount bash -c 'mount --bind /dev/null /dev/tty0 2>/dev/null'; then
+            TTY0_MODE="unshare"
+            bashio::log.info "unshare mount namespace works, will use for Xorg"
         else
-            bashio::log.warning "Could not access or delete /dev/tty0, X may fail"
+            bashio::log.warning "All tty0 strategies failed, X may not start"
         fi
     fi
 fi
@@ -357,7 +374,13 @@ echo "."
 bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"  #No cursor if <0
-Xorg -sharevts $NOCURSOR :0 </dev/null 2>&1 | grep -v "Could not resolve keysym XF86\|Errors from xkbcomp are not fatal\|XKEYBOARD keymap compiler (xkbcomp) reports" &
+XORG_CMD="Xorg -sharevts $NOCURSOR :0"
+if [ "$TTY0_MODE" = "unshare" ]; then
+    # Run Xorg inside a mount namespace where /dev/tty0 is hidden
+    unshare --mount bash -c "mount --bind /dev/null /dev/tty0 && exec $XORG_CMD" </dev/null 2>&1 | grep -v "Could not resolve keysym XF86\|Errors from xkbcomp are not fatal\|XKEYBOARD keymap compiler (xkbcomp) reports" &
+else
+    $XORG_CMD </dev/null 2>&1 | grep -v "Could not resolve keysym XF86\|Errors from xkbcomp are not fatal\|XKEYBOARD keymap compiler (xkbcomp) reports" &
+fi
 
 XSTARTUP=30
 for ((i=0; i<=XSTARTUP; i++)); do

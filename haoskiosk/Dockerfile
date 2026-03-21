@@ -45,6 +45,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ### Linux utils
      bash \
      util-linux \
+     bsdmainutils \
+     dconf-cli \
      patch \
      scrot \
      procps \
