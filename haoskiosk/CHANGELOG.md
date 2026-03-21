@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.2-welizard.89 - March 2026
+
+- **Fix SIGILL crash on WebAssembly pages (Live2D Cubism Core).**
+  Root cause: V8's WASM trap handler uses SIGSEGV-based bounds checking
+  which is incompatible with musl's signal handling on Alpine Linux.
+  Fix: `--js-flags=--wasm-enforce-bounds-checks` forces V8 to use inline
+  bounds checks instead of signal traps.
+- Add `--enable-unsafe-swiftshader` for SwiftShader WebGL fallback
+  (required since Chrome 130+).
+- Clear GPU/shader caches on every addon restart.
+- Remove URL-specific conservative renderer guards (no longer needed).
+
 ## v1.3.2-welizard.88 - March 2026
 
 - Keep the default Chromium launch path close to a normal X11 kiosk browser:

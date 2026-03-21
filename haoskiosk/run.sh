@@ -168,7 +168,12 @@ case "${BROWSER_ENGINE,,}" in
             bashio::log.error "Chromium requested but not found in container"
             exit 1
         fi
-        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled"
+        # Alpine uses musl libc whose signal handling is incompatible with
+        # V8's WASM trap handler (SIGSEGV-based bounds checks). Without this
+        # flag, any page loading WebAssembly (e.g. Live2D Cubism Core) crashes
+        # the renderer with SIGILL.  --wasm-enforce-bounds-checks forces V8 to
+        # use inline bounds checks instead of signal traps.
+        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --js-flags=--wasm-enforce-bounds-checks --enable-unsafe-swiftshader"
         bashio::log.info "Using browser engine: chromium [$BROWSER]"
         bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo unknown)"
         bashio::log.info "Chromium flags: $BROWSER_FLAGS"
@@ -183,6 +188,19 @@ case "${BROWSER_ENGINE,,}" in
         exit 1
         ;;
 esac
+
+if [ "${BROWSER_ENGINE,,}" = "chromium" ]; then
+    # Clear Chromium GPU/shader caches on every start so a bad renderer state
+    # from the previous run does not survive add-on updates or restarts.
+    rm -rf \
+        /config/chromium-profile/GPUCache \
+        /config/chromium-profile/ShaderCache \
+        /config/chromium-profile/GrShaderCache \
+        /config/chromium-profile/GraphiteDawnCache \
+        /config/chromium-profile/DawnCache \
+        /config/chromium-profile/component_crx_cache \
+        2>/dev/null || true
+fi
 
 # Validate environment variables set by config.yaml
 # Auto-login requires both username and password; skip validation for Chromium
