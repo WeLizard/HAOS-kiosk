@@ -163,7 +163,7 @@ case "$BROWSER_ENGINE" in
         else
             BROWSER="chromium"
         fi
-        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --enable-unsafe-swiftshader --ignore-gpu-blocklist --disable-gpu-compositing --enable-logging=stderr --v=1"
+        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --disable-gpu --enable-logging=stderr --v=1"
 
         # Force lavapipe (software Vulkan) — Intel N150 (0x46d4) not supported by
         # mesa's hardware Vulkan driver (intel_hasvk) in Debian Bookworm.
