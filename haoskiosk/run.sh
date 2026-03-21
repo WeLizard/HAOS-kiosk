@@ -360,6 +360,43 @@ else
     fi
 fi
 
+# If udev didn't tag input devices, add explicit InputDevice sections.
+# Without udev tags, Xorg cannot auto-detect input devices via libinput.
+# Check if udev actually tagged any input device (ID_INPUT property).
+UDEV_FUNCTIONAL=false
+for _dev in /dev/input/event*; do
+    if [ -c "$_dev" ] && udevadm info --query=property --name="$_dev" 2>/dev/null | grep -q "^ID_INPUT="; then
+        UDEV_FUNCTIONAL=true
+        break
+    fi
+done
+if [ "$UDEV_FUNCTIONAL" = false ]; then
+    bashio::log.info "udev not running — adding explicit input device entries to xorg.conf"
+    idx=0
+    {
+        echo ""
+        echo "# Auto-generated: udev unavailable, using explicit input devices"
+        echo "Section \"ServerFlags\""
+        echo "    Option \"AutoAddDevices\" \"false\""
+        echo "    Option \"AutoEnableDevices\" \"true\""
+        echo "EndSection"
+        for dev in /dev/input/event*; do
+            [ -c "$dev" ] || continue
+            devname=$(basename "$dev")
+            echo ""
+            echo "Section \"InputDevice\""
+            echo "    Identifier \"evdev-${devname}\""
+            echo "    Driver \"libinput\""
+            echo "    Option \"Device\" \"${dev}\""
+            echo "    Option \"Tapping\" \"on\""
+            echo "    Option \"TappingDrag\" \"on\""
+            echo "EndSection"
+            idx=$((idx + 1))
+        done
+    } >> /etc/X11/xorg.conf
+    bashio::log.info "Added $idx input device(s) to xorg.conf"
+fi
+
 # Print out current 'xorg.conf'
 echo "."  #Almost blank line (Note totally blank or white space lines are swallowed)
 printf '%*s xorg.conf %*s\n' 35 '' 34 '' | tr ' ' '#'  #Header
