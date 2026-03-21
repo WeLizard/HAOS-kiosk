@@ -371,8 +371,27 @@ for _dev in /dev/input/event*; do
     fi
 done
 if [ "$UDEV_FUNCTIONAL" = false ]; then
-    bashio::log.info "udev not running — adding explicit input device entries to xorg.conf"
+    bashio::log.info "udev not functional — adding explicit input devices to xorg.conf"
     idx=0
+    input_sections=""
+    layout_refs=""
+    for dev in /dev/input/event*; do
+        [ -c "$dev" ] || continue
+        devname=$(basename "$dev")
+        input_sections="${input_sections}
+Section \"InputDevice\"
+    Identifier \"evdev-${devname}\"
+    Driver \"libinput\"
+    Option \"Device\" \"${dev}\"
+    Option \"Tapping\" \"on\"
+    Option \"TappingDrag\" \"on\"
+EndSection
+"
+        layout_refs="${layout_refs}    InputDevice \"evdev-${devname}\" \"SendCoreEvents\"\n"
+        idx=$((idx + 1))
+    done
+
+    # Add ServerFlags to disable udev-based auto-detection
     {
         echo ""
         echo "# Auto-generated: udev unavailable, using explicit input devices"
@@ -380,20 +399,15 @@ if [ "$UDEV_FUNCTIONAL" = false ]; then
         echo "    Option \"AutoAddDevices\" \"false\""
         echo "    Option \"AutoEnableDevices\" \"true\""
         echo "EndSection"
-        for dev in /dev/input/event*; do
-            [ -c "$dev" ] || continue
-            devname=$(basename "$dev")
-            echo ""
-            echo "Section \"InputDevice\""
-            echo "    Identifier \"evdev-${devname}\""
-            echo "    Driver \"libinput\""
-            echo "    Option \"Device\" \"${dev}\""
-            echo "    Option \"Tapping\" \"on\""
-            echo "    Option \"TappingDrag\" \"on\""
-            echo "EndSection"
-            idx=$((idx + 1))
-        done
+        echo "$input_sections"
     } >> /etc/X11/xorg.conf
+
+    # Insert InputDevice references into ServerLayout (before its EndSection)
+    sed -i "/^Section \"ServerLayout\"/,/^EndSection/{
+        /^EndSection/i\\
+$(printf '%b' "$layout_refs")
+    }" /etc/X11/xorg.conf
+
     bashio::log.info "Added $idx input device(s) to xorg.conf"
 fi
 
