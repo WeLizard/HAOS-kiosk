@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
      x11-xkb-utils \
 ### Input, udev
      xserver-xorg-input-libinput \
+     libinput-tools \
      udev \
      libevdev2 \
      evtest \
