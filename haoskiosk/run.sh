@@ -402,11 +402,11 @@ EndSection
         echo "$input_sections"
     } >> /etc/X11/xorg.conf
 
-    # Insert InputDevice references into ServerLayout (before its EndSection)
-    sed -i "/^Section \"ServerLayout\"/,/^EndSection/{
-        /^EndSection/i\\
-$(printf '%b' "$layout_refs")
-    }" /etc/X11/xorg.conf
+    # Insert InputDevice references into ServerLayout (before first EndSection)
+    awk -v refs="$layout_refs" '
+        /^EndSection/ && !done { printf "%s", refs; done=1 }
+        { print }
+    ' /etc/X11/xorg.conf > /tmp/xorg.conf.tmp && mv /tmp/xorg.conf.tmp /etc/X11/xorg.conf
 
     bashio::log.info "Added $idx input device(s) to xorg.conf"
 fi
