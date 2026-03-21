@@ -84,6 +84,11 @@ trap cleanup HUP INT QUIT ABRT TERM EXIT
 #### Variables
 BROWSER=""
 BROWSER_FLAGS=""
+BROWSER_PID=""
+
+browser_process_running() {
+    [ -n "$BROWSER_PID" ] && kill -0 "$BROWSER_PID" 2>/dev/null
+}
 
 ################################################################################
 #### Get config variables from HA add-on & set environment variables
@@ -709,11 +714,12 @@ if [ "$DEBUG_MODE" != true ]; then
     ### Run browser in the background and wait for process to exit
     # shellcheck disable=SC2086
     $BROWSER ${BROWSER_FLAGS:+$BROWSER_FLAGS} "$HA_TARGET_URL" &
-    bashio::log.info "Launching $BROWSER browser(PID=$!): $HA_TARGET_URL"
+    BROWSER_PID=$!
+    bashio::log.info "Launching $BROWSER browser(PID=$BROWSER_PID): $HA_TARGET_URL"
 
     count=0
     while true; do  # Wait for all browser processes to exit
-        if pgrep -f -- "^$BROWSER " > /dev/null 2>&1; then
+        if browser_process_running; then
             count=0
         else
             count=$((count + 1))

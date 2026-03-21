@@ -1,12 +1,15 @@
 # Changelog
 
-## v1.3.2-welizard.87 - March 2026
+## v1.3.2-welizard.88 - March 2026
 
 - Keep the default Chromium launch path close to a normal X11 kiosk browser:
   remove the forced `--use-gl=angle --use-angle=swiftshader` +
   `--enable-unsafe-swiftshader` override from the main runtime path.
 - Align `run.sh` fallback defaults with the current add-on config defaults:
   `browser_refresh=0`, `screen_timeout=0`, `onscreen_keyboard=true`.
+- Track the launched Chromium PID directly instead of relying on a
+  `chromium-browser` process-name grep that falsely expired after 10 seconds
+  even while Chromium was still alive.
 
 ## v1.3.2-welizard.84 - March 2026
 
