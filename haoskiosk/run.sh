@@ -713,13 +713,28 @@ if [ "$DEBUG_MODE" != true ]; then
         bashio::log.info "Display sleep monitor started (checks every 5s)"
     fi
 
+    ### Resolve target URL: use HA_DASHBOARD directly if it's a full URL, otherwise append to HA_URL
+    if [[ "$HA_DASHBOARD" =~ ^https?:// ]]; then
+        TARGET_URL="$HA_DASHBOARD"
+    else
+        TARGET_URL="$HA_URL/$HA_DASHBOARD"
+    fi
+
     ### Run browser in the background and wait for process to exit
-    $BROWSER ${BROWSER_FLAGS:+$BROWSER_FLAGS} "$HA_URL/$HA_DASHBOARD" &
-    bashio::log.info "Launching $BROWSER browser(PID=$!): $HA_URL/$HA_DASHBOARD"
+    $BROWSER ${BROWSER_FLAGS:+$BROWSER_FLAGS} "$TARGET_URL" &
+    BROWSER_PID=$!
+    bashio::log.info "Launching $BROWSER browser(PID=$BROWSER_PID): $TARGET_URL"
+
+    # Determine process search pattern: on Alpine, chromium-browser is a wrapper
+    # script that execs /usr/lib/chromium/chromium, so pgrep must match broadly
+    case "$BROWSER_ENGINE" in
+        chromium) BROWSER_PGREP="chromium" ;;
+        *)        BROWSER_PGREP="$BROWSER" ;;
+    esac
 
     count=0
     while true; do  # Wait for all browser processes to exit
-        if pgrep -f -- "^$BROWSER " > /dev/null 2>&1; then
+        if pgrep -f "$BROWSER_PGREP" > /dev/null 2>&1; then
             count=0
         else
             count=$((count + 1))
@@ -727,7 +742,7 @@ if [ "$DEBUG_MODE" != true ]; then
         [ $count -ge 3 ] && break # Exit if no browser process for at least 2*5=10 seconds
         sleep 5
     done
-    bashio::log.info "No $BROWSER instances remaining... exiting 'run.sh'..."
+    bashio::log.info "No $BROWSER_PGREP instances remaining... exiting 'run.sh'..."
 
 else  ### Debug mode
     bashio::log.info "Entering debug mode (X & $WINMGR window manager but no $BROWSER browser)..."
