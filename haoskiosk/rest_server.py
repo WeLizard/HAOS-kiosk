@@ -852,8 +852,8 @@ async def security_middleware(
                 {"success": False, "error": "Invalid or missing REST_BEARER_TOKEN Authorization token"},
                 status=401,)
 
-    cmd_name = getattr(handler, "cmd_name")
-    if cmd_name in PROTECTED_COMMANDS:
+    cmd_name = getattr(handler, "cmd_name", None)
+    if cmd_name and cmd_name in PROTECTED_COMMANDS:
         if  remote_ip not in ("127.0.0.1", "::1", "localhost") and REST_BEARER_TOKEN is None:
             logging.warning("[security] Blocked protected REST command '%s' from non-localhost IP: %s", cmd_name, remote_ip)
             return web.json_response({
