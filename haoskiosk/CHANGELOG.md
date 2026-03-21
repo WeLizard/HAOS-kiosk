@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Keep the default Chromium launch path close to a normal X11 kiosk browser:
+  remove the forced `--use-gl=angle --use-angle=swiftshader` +
+  `--enable-unsafe-swiftshader` override from the main runtime path.
+- Align `run.sh` fallback defaults with the current add-on config defaults:
+  `browser_refresh=0`, `screen_timeout=0`, `onscreen_keyboard=true`.
+
 ## v1.3.2-welizard.84 - March 2026
 
 - **Clean restart from upstream.** Reset Dockerfile and run.sh to
