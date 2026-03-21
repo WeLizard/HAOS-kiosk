@@ -168,12 +168,7 @@ case "${BROWSER_ENGINE,,}" in
             bashio::log.error "Chromium requested but not found in container"
             exit 1
         fi
-        # Force ANGLE to use its OpenGL backend (mesa llvmpipe) instead of
-        # Vulkan (SwiftShader/lavapipe).  SwiftShader's Reactor JIT generates
-        # native x86 code that causes SIGILL on Alpine/musl + Intel N150.
-        # llvmpipe is a stable software GL renderer with no JIT issues.
-        # --js-flags=--wasm-enforce-bounds-checks: musl signal handling fix.
-        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --use-gl=angle --use-angle=gl --js-flags=--wasm-enforce-bounds-checks"
+        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled"
         bashio::log.info "Using browser engine: chromium [$BROWSER]"
         bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo unknown)"
         bashio::log.info "Chromium flags: $BROWSER_FLAGS"
@@ -250,23 +245,28 @@ echo "export DBUS_SESSION_BUS_ADDRESS='$DBUS_SESSION_BUS_ADDRESS'" >> "$HOME/.pr
 #       in particular will block HAOS updates
 if [ -e "/dev/tty0" ]; then
     bashio::log.info "Attempting to remount /dev as 'rw' so we can (temporarily) delete /dev/tty0..."
-    mount -o remount,rw /dev
-    if ! mount -o remount,rw /dev ; then
-        bashio::log.error "Failed to remount /dev as read-write..."
-        exit 1
+    if mount -o remount,rw /dev 2>/dev/null && rm -f /dev/tty0 ; then
+        TTY0_DELETED=1
+        bashio::log.info "Deleted /dev/tty0 successfully..."
+    else
+        bashio::log.warning "Could not delete /dev/tty0 (non-fatal, continuing)..."
     fi
-    if  ! rm -f /dev/tty0 ; then
-        bashio::log.error "Failed to delete /dev/tty0..."
-        exit 1
-    fi
-    TTY0_DELETED=1
-    bashio::log.info "Deleted /dev/tty0 successfully..."
 fi
 
 #### Start udev (used by X)
 bashio::log.info "Starting 'udevd' and (re-)triggering..."
-if ! udevd --daemon || ! udevadm trigger; then
-    bashio::log.warning "WARNING: Failed to start udevd or trigger udev, input devices may not work"
+if command -v udevd >/dev/null 2>&1; then
+    UDEVD_BIN="udevd"
+elif [ -x /lib/systemd/systemd-udevd ]; then
+    UDEVD_BIN="/lib/systemd/systemd-udevd"
+else
+    UDEVD_BIN=""
+    bashio::log.warning "udevd not found, input devices may not work"
+fi
+if [ -n "$UDEVD_BIN" ]; then
+    if ! $UDEVD_BIN --daemon || ! udevadm trigger; then
+        bashio::log.warning "WARNING: Failed to start udevd or trigger udev, input devices may not work"
+    fi
 fi
 udevadm settle --timeout=10  #Wait for udev event processing to complete
 
@@ -327,7 +327,7 @@ libinput list-devices 2>/dev/null | awk '
     gsub(/^[ \t]+|[ \t]+$/, "", type)      # Trim capabilities (i.e., device type)
   }
   END { print_device() }  # Print last device
-' | sort -V | column -t -s $'\t'
+' | sort -V | if command -v column >/dev/null 2>&1; then column -t -s $'\t'; else cat; fi
 
 ## Determine main display card
 bashio::log.info "DRM video cards:"

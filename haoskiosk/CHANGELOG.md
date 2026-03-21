@@ -1,16 +1,17 @@
 # Changelog
 
-## v1.3.2-welizard.89 - March 2026
+## v1.3.2-welizard.91 - March 2026
 
-- **Fix SIGILL crash on WebAssembly pages (Live2D Cubism Core).**
-  Root cause: V8's WASM trap handler uses SIGSEGV-based bounds checking
-  which is incompatible with musl's signal handling on Alpine Linux.
-  Fix: `--js-flags=--wasm-enforce-bounds-checks` forces V8 to use inline
-  bounds checks instead of signal traps.
-- Add `--enable-unsafe-swiftshader` for SwiftShader WebGL fallback
-  (required since Chrome 130+).
+- **Switch to Debian Bookworm (glibc) base image.**
+  Alpine's musl libc is fundamentally incompatible with Chromium 146's
+  WebGL/WASM renderer — the renderer process crashes with SIGILL on
+  any page using WebAssembly (e.g. Live2D Cubism Core) or complex
+  WebGL shaders. No combination of Chromium flags fixes this.
+  Debian/glibc eliminates the issue entirely.
+- Clean Chromium flags — no GL overrides, no WASM workarounds.
+- Debian compatibility: auto-detect udevd path, non-fatal tty0 hack,
+  column command fallback.
 - Clear GPU/shader caches on every addon restart.
-- Remove URL-specific conservative renderer guards (no longer needed).
 
 ## v1.3.2-welizard.88 - March 2026
 
