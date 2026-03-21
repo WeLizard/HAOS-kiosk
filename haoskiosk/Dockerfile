@@ -67,6 +67,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ##### Set the display variable
 ENV DISPLAY=:0
 
+##### Build tty0_override.so — LD_PRELOAD library to fake /dev/tty0 VT access
+# Needed because HAOS containers block /dev/tty0 access on Debian
+COPY tty0_override.c /tmp/
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev \
+    && gcc -shared -fPIC -o /usr/lib/tty0_override.so /tmp/tty0_override.c -ldl \
+    && rm /tmp/tty0_override.c \
+    && apt-get remove -y gcc libc6-dev \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
 ##### Copy over 'xorg.conf.default' and lua 'userconf.lua' file
 COPY xorg.conf.default /etc/X11/
 COPY userconf.lua /root/.config/luakit/
