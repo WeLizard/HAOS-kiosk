@@ -16,6 +16,7 @@ ENV ADDON_VERSION=${BUILD_VERSION}
 RUN apt-get update && apt-get install -y --no-install-recommends \
 ## Xserver and graphics
      xserver-xorg-core \
+     xserver-xorg-legacy \
      xserver-xorg-video-all \
      libgl1-mesa-dri \
      libegl-mesa0 \
@@ -64,6 +65,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ##### Set the display variable
 ENV DISPLAY=:0
+
+##### Allow Xorg to run from container (no VT required)
+RUN mkdir -p /etc/X11 && \
+    printf 'allowed_users=anybody\nneeds_root_rights=yes\n' > /etc/X11/Xwrapper.config
 
 ##### Copy over 'xorg.conf.default' and lua 'userconf.lua' file
 COPY xorg.conf.default /etc/X11/

@@ -389,7 +389,7 @@ echo "."
 bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"  #No cursor if <0
-Xorg $NOCURSOR </dev/null 2>&1 | grep -v "Could not resolve keysym XF86\|Errors from xkbcomp are not fatal\|XKEYBOARD keymap compiler (xkbcomp) reports" &
+Xorg -sharevts $NOCURSOR :0 </dev/null 2>&1 | grep -v "Could not resolve keysym XF86\|Errors from xkbcomp are not fatal\|XKEYBOARD keymap compiler (xkbcomp) reports" &
 
 XSTARTUP=30
 for ((i=0; i<=XSTARTUP; i++)); do

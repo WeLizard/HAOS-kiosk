@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.2-welizard.93 - March 2026
+
+- Fix X server startup on Debian: add `-sharevts` flag to Xorg to bypass
+  `/dev/tty0` VT management that fails in containers (devtmpfs read-only,
+  bind mounts blocked by security).
+- Add `xserver-xorg-legacy` package and `Xwrapper.config` for proper
+  container Xorg permissions.
+
 ## v1.3.2-welizard.91 - March 2026
 
 - **Switch to Debian Bookworm (glibc) base image.**
