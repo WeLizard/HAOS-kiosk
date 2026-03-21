@@ -163,7 +163,7 @@ case "${BROWSER_ENGINE,,}" in
             bashio::log.error "Chromium requested but not found in container"
             exit 1
         fi
-        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --enable-unsafe-swiftshader --ignore-gpu-blocklist"
+        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --disable-dev-shm-usage --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader"
         bashio::log.info "Using browser engine: chromium [$BROWSER]"
         bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo unknown)"
         bashio::log.info "Chromium flags: $BROWSER_FLAGS"
