@@ -585,7 +585,15 @@ fi
 
 #### Start udev (used by X)
 bashio::log.info "Starting 'udevd' and (re-)triggering..."
-if ! udevd --daemon || ! udevadm trigger; then
+UDEVD_BIN=""
+if command -v udevd >/dev/null 2>&1; then
+    UDEVD_BIN="udevd"
+elif [ -x /lib/systemd/systemd-udevd ]; then
+    UDEVD_BIN="/lib/systemd/systemd-udevd"
+elif command -v systemd-udevd >/dev/null 2>&1; then
+    UDEVD_BIN="systemd-udevd"
+fi
+if [ -z "$UDEVD_BIN" ] || ! "$UDEVD_BIN" --daemon || ! udevadm trigger; then
     bashio::log.warning "WARNING: Failed to start udevd or trigger udev, input devices may not work"
 fi
 udevadm settle --timeout=10  #Wait for udev event processing to complete
@@ -647,7 +655,7 @@ libinput list-devices 2>/dev/null | awk '
     gsub(/^[ \t]+|[ \t]+$/, "", type)      # Trim capabilities (i.e., device type)
   }
   END { print_device() }  # Print last device
-' | sort -V | column -t -s $'\t'
+' | sort -V | if command -v column >/dev/null 2>&1; then column -t -s $'\t'; else cat; fi
 
 ## Determine main display card
 bashio::log.info "DRM video cards:"
