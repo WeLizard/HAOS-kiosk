@@ -207,35 +207,39 @@ echo "$DBUS_SESSION_BUS_ADDRESS" >| /tmp/DBUS_SESSION_BUS_ADDRESS
 # Make available to subsequent shells
 echo "export DBUS_SESSION_BUS_ADDRESS='$DBUS_SESSION_BUS_ADDRESS'" >> "$HOME/.profile"
 
-#### Hack to get writable /dev/tty0 for X
-# Note first need to delete /dev/tty0 since X won't start if it is there,
-# because X doesn't have permissions to access it in the container
-# Also, prevents udev permission error warnings & issues
-# Note that remounting rw is not sufficient
-
-# First, remount /dev as read-write since X absolutely, must have /dev/tty access
-# Note: need to use the version of 'mount' in util-linux, not busybox
-# Note: Do *not* later remount as 'ro' since that affect the root fs and
-#       in particular will block HAOS updates
+#### Handle /dev/tty0 for X server
+# On Debian (glibc), /dev/tty0 is in the devices list (config.yaml) so Xorg
+# can open it directly. We use -sharevts to prevent VT switching.
+# On Alpine (musl), /dev/tty0 must be deleted (upstream hack).
 if [ -e "/dev/tty0" ]; then
-    bashio::log.info "Attempting to remount /dev as 'rw' so we can (temporarily) delete /dev/tty0..."
-    mount -o remount,rw /dev
-    if ! mount -o remount,rw /dev ; then
-        bashio::log.error "Failed to remount /dev as read-write..."
-        exit 1
+    if exec 3>/dev/tty0 2>/dev/null; then
+        exec 3>&-
+        bashio::log.info "/dev/tty0 is accessible, Xorg will use -sharevts"
+    else
+        bashio::log.info "Cannot open /dev/tty0, attempting Alpine-style deletion..."
+        if mount -o remount,rw /dev 2>/dev/null && rm -f /dev/tty0; then
+            TTY0_DELETED=1
+            bashio::log.info "Deleted /dev/tty0 successfully..."
+        else
+            bashio::log.warning "Could not access or delete /dev/tty0, X may fail"
+        fi
     fi
-    if  ! rm -f /dev/tty0 ; then
-        bashio::log.error "Failed to delete /dev/tty0..."
-        exit 1
-    fi
-    TTY0_DELETED=1
-    bashio::log.info "Deleted /dev/tty0 successfully..."
 fi
 
 #### Start udev (used by X)
 bashio::log.info "Starting 'udevd' and (re-)triggering..."
-if ! udevd --daemon || ! udevadm trigger; then
-    bashio::log.warning "WARNING: Failed to start udevd or trigger udev, input devices may not work"
+if command -v udevd >/dev/null 2>&1; then
+    UDEVD_BIN="udevd"
+elif [ -x /lib/systemd/systemd-udevd ]; then
+    UDEVD_BIN="/lib/systemd/systemd-udevd"
+else
+    UDEVD_BIN=""
+    bashio::log.warning "udevd not found, input devices may not work"
+fi
+if [ -n "$UDEVD_BIN" ]; then
+    if ! $UDEVD_BIN --daemon || ! udevadm trigger; then
+        bashio::log.warning "WARNING: Failed to start udevd or trigger udev, input devices may not work"
+    fi
 fi
 udevadm settle --timeout=10  #Wait for udev event processing to complete
 
@@ -353,7 +357,7 @@ echo "."
 bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"  #No cursor if <0
-Xorg $NOCURSOR </dev/null 2>&1 | grep -v "Could not resolve keysym XF86\|Errors from xkbcomp are not fatal\|XKEYBOARD keymap compiler (xkbcomp) reports" &
+Xorg -sharevts $NOCURSOR :0 </dev/null 2>&1 | grep -v "Could not resolve keysym XF86\|Errors from xkbcomp are not fatal\|XKEYBOARD keymap compiler (xkbcomp) reports" &
 
 XSTARTUP=30
 for ((i=0; i<=XSTARTUP; i++)); do

@@ -1,7 +1,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: Dockerfile
-# Base: Alpine (default HAOS base image)
+# Base: Debian Bookworm (glibc) — required for Chromium WebGL/WASM stability
 # Copyright Jeff Kosowsky / Welizard Chromium fork
 ################################################################################
 
@@ -13,54 +13,52 @@ ENV ADDON_VERSION=${BUILD_VERSION}
 
 #===============================================================================
 ##### Install X, Browser and all necessary dependencies
-RUN apk update && apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
 ## Xserver and graphics
-     xorg-server \
-     xf86-video-modesetting \
-     mesa-dri-gallium \
-     mesa-egl \
-     mesa-gles \
-     libdrm \
-### Vulkan (required for Chromium ANGLE/SwANGLE WebGL)
-     mesa-vulkan-swrast \
-     vulkan-loader \
+     xserver-xorg-core \
+     xserver-xorg-video-all \
+     libgl1-mesa-dri \
+     libegl-mesa0 \
+     libgles2 \
+     libgl1 \
+     mesa-vulkan-drivers \
+     libvulkan1 \
+     libdrm2 \
 ### X utils
      xdotool \
      xinput \
-     xrandr \
-     xset \
-     libxkbcommon \
-     setxkbmap \
+     x11-xserver-utils \
+     libxkbcommon0 \
+     x11-xkb-utils \
 ### Input, udev
-     xf86-input-libinput \
-     libinput \
+     xserver-xorg-input-libinput \
+     libinput10 \
+     libinput-tools \
      udev \
-     libinput-udev \
-     libevdev \
+     libevdev2 \
      evtest \
 ### Window, mouse, keyboard management
      openbox \
      onboard \
      unclutter-xfixes \
-     ttf-dejavu \
+     fonts-dejavu-core \
 ### Linux utils
      bash \
      util-linux \
      patch \
      scrot \
-### Full Timezone info
-     icu-data-full \
+     procps \
 ### Python libraries
-    py3-pip \
-    py3-xlib \
+     python3-pip \
+     python3-xlib \
 ### Sound
      pulseaudio-utils \
 ### VNC (for debugging)
-      x11vnc \
+     x11vnc \
 ## Browsers
      chromium \
-   && apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.21/community luakit=2.3.6-r0 \
-   && rm -rf /var/cache/apk/*
+     luakit \
+   && rm -rf /var/lib/apt/lists/*
 
 #===============================================================================
 
@@ -82,7 +80,7 @@ RUN pip install --no-cache-dir --break-system-packages aiohttp
 
 #### Patches
 # Need to patch 'unique_instance.lua' so that new instance urls overwrite active url rather than add new tab
-COPY unique_instance.patch /usr/share/luakit/lib
-RUN patch -p2 /usr/share/luakit/lib/unique_instance.lua < /usr/share/luakit/lib/unique_instance.patch
+COPY unique_instance.patch /usr/share/luakit/lib/
+RUN patch -p2 /usr/share/luakit/lib/unique_instance.lua < /usr/share/luakit/lib/unique_instance.patch || true
 
 CMD ["/run.sh"]

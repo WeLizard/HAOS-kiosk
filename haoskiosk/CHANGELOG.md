@@ -1,17 +1,26 @@
 # Changelog
 
-## v1.3.2-welizard.95 - March 2026
+## v1.3.2-welizard.97 - March 2026
 
-- **Clean rewrite from upstream puterboy/HAOS-kiosk.**
-  Back to Alpine base (no build.yaml, no Debian). Alpine's devtmpfs is
-  writable — the original tty0 delete hack works, no VT workarounds needed.
-- Added Chromium + WebGL support: `chromium`, `mesa-vulkan-swrast`,
-  `vulkan-loader` packages. Clean flags, no GL/ANGLE overrides.
-- Added `browser_engine` config option (`chromium`|`luakit`, default: chromium).
-- Added display sleep: when DPMS turns screen off, Chromium renderer and
-  GPU processes are paused (SIGSTOP). Resumed on wake (SIGCONT).
-- Made `ha_username`/`ha_password` optional (not needed for Chromium ingress).
-- Removed Debian-specific workarounds (.91-.94).
+- **Debian Bookworm (glibc) base** — Alpine musl causes SIGILL on Chromium
+  WebGL/WASM pages (confirmed with screenshot). Debian/glibc works.
+- **Fix Xorg tty0 on Debian**: added `/dev/tty0`, `/dev/tty1`, `/dev/tty2`,
+  `/dev/tty7` to config.yaml devices list so Docker grants device cgroup
+  access. Combined with `-sharevts` Xorg flag to prevent VT switching
+  (no SYS_TTY_CONFIG needed). Smart fallback: if tty0 is accessible, use
+  -sharevts; if not, try Alpine-style deletion.
+- Fixed URL: `HA_DASHBOARD` starting with `http://` used directly, not
+  appended to `HA_URL`.
+- Fixed Chromium process detection: `pgrep "chromium"` instead of
+  `pgrep "^chromium-browser"` (wrapper script does exec on Alpine).
+- Added `browser_engine` config (`chromium`|`luakit`, default: chromium).
+- Added display sleep: SIGSTOP/SIGCONT on Chromium renderer when DPMS off/on.
+- Auto-detect udevd path (Debian uses systemd-udevd).
+
+## v1.3.2-welizard.95 - March 2026 (reverted)
+
+- Clean rewrite from upstream (Alpine). Reverted because Alpine Chromium
+  crashes with SIGILL on WebGL/WASM pages.
 
 ## v1.3.2-welizard.91 - March 2026
 
