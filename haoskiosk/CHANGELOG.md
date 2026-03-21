@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.3.2-welizard.87 - March 2026
 
 - Keep the default Chromium launch path close to a normal X11 kiosk browser:
   remove the forced `--use-gl=angle --use-angle=swiftshader` +
