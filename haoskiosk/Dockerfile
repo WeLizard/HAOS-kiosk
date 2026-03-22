@@ -12,17 +12,24 @@ ARG BUILD_VERSION
 ENV ADDON_VERSION=${BUILD_VERSION}
 
 #===============================================================================
+##### Add Debian Bookworm backports for Mesa 25.0 (Intel N150 / ADL-N 0x46d4 support)
+RUN echo "deb http://deb.debian.org/debian bookworm-backports main" \
+      >> /etc/apt/sources.list.d/backports.list
+
 ##### Install X, Browser and all necessary dependencies
+##### Mesa/GL packages from backports for Intel N150 iris driver support
 RUN apt-get update && apt-get install -y --no-install-recommends \
 ## Xserver and graphics
      xserver-xorg-core \
      xserver-xorg-video-all \
+   && apt-get install -t bookworm-backports -y --no-install-recommends \
      libgl1-mesa-dri \
      libegl-mesa0 \
      libgles2 \
      libgl1 \
      mesa-vulkan-drivers \
      libvulkan1 \
+   && apt-get install -y --no-install-recommends \
      libdrm2 \
 ### X utils
      xdotool \

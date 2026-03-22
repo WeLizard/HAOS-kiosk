@@ -163,10 +163,10 @@ case "$BROWSER_ENGINE" in
         else
             BROWSER="chromium"
         fi
-        # Core flags: native GPU rendering via ANGLE/EGL (iris driver for Intel).
+        # Core flags: native GPU rendering via EGL (Mesa iris driver for Intel).
         # Uses /dev/dri/renderD128 for hardware-accelerated WebGL and compositing.
-        # Falls back to SwANGLE if native EGL is unavailable.
-        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --use-gl=angle --use-angle=gl-egl --enable-unsafe-swiftshader --ignore-gpu-blocklist"
+        # Mesa 25.0 from bookworm-backports provides iris support for Intel N150 (0x46d4).
+        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --use-gl=egl --enable-gpu-rasterization --ignore-gpu-blocklist"
 
         bashio::log.info "Using browser engine: chromium [$BROWSER]"
         bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo 'unknown')"
@@ -196,7 +196,6 @@ export GTK_USE_PORTAL=0               # Disable portals
 export GIO_USE_VFS=local              # Local-only GIO
 export DBUS_SESSION_BUS_TIMEOUT=5000  # Shorten DBUS timeouts
 export GTK_CSD=0                      # Disable client side decorations (???)
-export MESA_LOADER_DRIVER_OVERRIDE=iris  # Force iris driver for Intel N150 (0x46d4 not in Mesa 22.3 PCI table)
 ################################################################################
 #### Start Dbus
 # Start dbus-daemon to Avoids waiting for DBUS timeouts (e.g., luakit)
