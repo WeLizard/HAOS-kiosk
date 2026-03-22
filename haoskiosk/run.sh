@@ -163,10 +163,10 @@ case "$BROWSER_ENGINE" in
         else
             BROWSER="chromium"
         fi
-        # Core flags: SwANGLE (ANGLE + SwiftShader CPU Vulkan) for full software
-        # rendering without DRI3/real GPU. Fixes image/SVG rendering in containers
-        # where GpuMemoryBuffer X11 native path fails (dri3 not supported).
-        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --use-gl=angle --use-angle=swiftshader --disable-vulkan-surface --ignore-gpu-blocklist"
+        # Core flags: native GPU rendering via ANGLE/EGL (iris driver for Intel).
+        # Uses /dev/dri/renderD128 for hardware-accelerated WebGL and compositing.
+        # Falls back to SwANGLE if native EGL is unavailable.
+        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --use-gl=angle --use-angle=gl-egl --enable-unsafe-swiftshader --ignore-gpu-blocklist"
 
         bashio::log.info "Using browser engine: chromium [$BROWSER]"
         bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo 'unknown')"
