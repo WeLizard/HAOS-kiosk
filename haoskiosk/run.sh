@@ -785,7 +785,9 @@ if [ "$DEBUG_MODE" != true ]; then
     fi
 
     ### For kiosk-scene URLs, force Live2D avatar adapter (override localhost static fallback)
-    if [[ "$TARGET_URL" == *"/scene"* ]]; then
+    ### Rewrite /scene/ to /scene-runtime/ to avoid nginx 302 that drops query params
+    if [[ "$TARGET_URL" == *"/scene/"* || "$TARGET_URL" == *"/scene-runtime/"* ]]; then
+        TARGET_URL=$(echo "$TARGET_URL" | sed 's|/scene/|/scene-runtime/|')
         if [[ "$TARGET_URL" == *"?"* ]]; then
             TARGET_URL="${TARGET_URL}&avatar=live2d"
         else
