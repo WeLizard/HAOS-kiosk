@@ -163,10 +163,12 @@ case "$BROWSER_ENGINE" in
         else
             BROWSER="chromium"
         fi
-        # Core flags: native GPU rendering via EGL (Mesa iris driver for Intel).
-        # Uses /dev/dri/renderD128 for hardware-accelerated WebGL and compositing.
-        # Mesa 25.0 from bookworm-backports provides iris support for Intel N150 (0x46d4).
-        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --use-gl=egl --enable-gpu-rasterization --ignore-gpu-blocklist"
+        # Core flags: GPU rendering via ANGLE (default backend).
+        # Debian Chromium only allows egl-angle/default — native EGL is blocked.
+        # Mesa 25.0 (bookworm-backports) provides iris+Vulkan for Intel N150 (0x46d4),
+        # so ANGLE will use hardware Vulkan via mesa-vulkan-drivers.
+        # --enable-unsafe-swiftshader ensures SwANGLE fallback if hardware Vulkan fails.
+        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --enable-gpu-rasterization --ignore-gpu-blocklist --enable-unsafe-swiftshader"
 
         bashio::log.info "Using browser engine: chromium [$BROWSER]"
         bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo 'unknown')"
