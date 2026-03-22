@@ -196,6 +196,7 @@ export GTK_USE_PORTAL=0               # Disable portals
 export GIO_USE_VFS=local              # Local-only GIO
 export DBUS_SESSION_BUS_TIMEOUT=5000  # Shorten DBUS timeouts
 export GTK_CSD=0                      # Disable client side decorations (???)
+export MESA_LOADER_DRIVER_OVERRIDE=iris  # Force iris driver for Intel N150 (0x46d4 not in Mesa 22.3 PCI table)
 ################################################################################
 #### Start Dbus
 # Start dbus-daemon to Avoids waiting for DBUS timeouts (e.g., luakit)
