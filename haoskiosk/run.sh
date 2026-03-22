@@ -785,7 +785,7 @@ if [ "$DEBUG_MODE" != true ]; then
     fi
 
     ### For kiosk-scene URLs, force Live2D avatar adapter (override localhost static fallback)
-    if [[ "$TARGET_URL" == *"scene-runtime"* ]]; then
+    if [[ "$TARGET_URL" == *"/scene"* ]]; then
         if [[ "$TARGET_URL" == *"?"* ]]; then
             TARGET_URL="${TARGET_URL}&avatar=live2d"
         else
