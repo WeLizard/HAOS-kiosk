@@ -163,16 +163,10 @@ case "$BROWSER_ENGINE" in
         else
             BROWSER="chromium"
         fi
-        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --enable-unsafe-swiftshader --ignore-gpu-blocklist --disable-gpu-compositing --enable-logging=stderr --v=1"
-
-        # Force lavapipe (software Vulkan) — Intel N150 (0x46d4) not supported by
-        # mesa's hardware Vulkan driver (intel_hasvk) in Debian Bookworm.
-        # ANGLE/SwANGLE needs a working Vulkan ICD for software WebGL.
-        LVP_ICD="/usr/share/vulkan/icd.d/lvp_icd.x86_64.json"
-        if [ -f "$LVP_ICD" ]; then
-            export VK_ICD_FILENAMES="$LVP_ICD"
-            bashio::log.info "Forcing lavapipe software Vulkan: $LVP_ICD"
-        fi
+        # Core flags: SwANGLE (ANGLE + SwiftShader CPU Vulkan) for full software
+        # rendering without DRI3/real GPU. Fixes image/SVG rendering in containers
+        # where GpuMemoryBuffer X11 native path fails (dri3 not supported).
+        BROWSER_FLAGS="--no-sandbox --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-infobars --password-store=basic --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=/config/chromium-profile --window-position=0,0 --start-fullscreen --kiosk --ozone-platform=x11 --touch-events=enabled --use-gl=angle --use-angle=swiftshader --disable-vulkan-surface --ignore-gpu-blocklist"
 
         bashio::log.info "Using browser engine: chromium [$BROWSER]"
         bashio::log.info "Chromium version: $($BROWSER --version 2>/dev/null || echo 'unknown')"
@@ -788,6 +782,16 @@ if [ "$DEBUG_MODE" != true ]; then
         TARGET_URL="$HA_DASHBOARD"
     else
         TARGET_URL="$HA_URL/$HA_DASHBOARD"
+    fi
+
+    ### For kiosk-scene URLs, force Live2D avatar adapter (override localhost static fallback)
+    if [[ "$TARGET_URL" == *"scene-runtime"* ]]; then
+        if [[ "$TARGET_URL" == *"?"* ]]; then
+            TARGET_URL="${TARGET_URL}&avatar=live2d"
+        else
+            TARGET_URL="${TARGET_URL}?avatar=live2d"
+        fi
+        bashio::log.info "Kiosk-scene detected, forcing Live2D avatar adapter"
     fi
 
     ### Clear GPU/shader caches to avoid stale state from previous GPU configs
