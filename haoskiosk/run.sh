@@ -65,6 +65,15 @@ bashio::log.info "$(uname -a)"
 ha_info=$(bashio::info)
 bashio::log.info "Core=$(echo "$ha_info" | jq -r '.homeassistant')  HAOS=$(echo "$ha_info" | jq -r '.hassos')  MACHINE=$(echo "$ha_info" | jq -r '.machine')  ARCH=$(echo "$ha_info" | jq -r '.arch')"
 
+################################################################################
+#### Sync bundled scene-runtime to /config/kiosk-scene/scene-runtime/
+if [ -d /opt/scene-runtime ]; then
+    SCENE_TARGET="/config/kiosk-scene/scene-runtime"
+    mkdir -p "$SCENE_TARGET"
+    cp -r /opt/scene-runtime/* "$SCENE_TARGET/"
+    bashio::log.info "Synced scene-runtime to $SCENE_TARGET"
+fi
+
 #### Clean up on exit:
 TTY0_DELETED=""  #Need to set to empty string since runs with nounset=on (like set -u)
 TTY0_MODE=""

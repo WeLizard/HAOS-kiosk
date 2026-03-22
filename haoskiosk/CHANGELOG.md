@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.2-welizard.120 - March 2026
+
+- **Fix lip sync / typewriter**: bubble with `speak:false` was overriding
+  state-driven typewriter animation. Now bubble is only sent when state has
+  no message — state drives typewriter and lip sync.
+- **Fix iframe polling override**: iframe file-based polling no longer
+  overwrites parent-delivered state (regardless of display mode).
+- **Bundle scene-runtime in addon**: scene-runtime files are now included
+  in the addon container and synced to `/config/kiosk-scene/scene-runtime/`
+  on startup. No more manual SCP deploys.
+- Emoji font (`fonts-noto-color-emoji`) added in v119.
+
 ## v1.3.2-welizard.97 - March 2026
 
 - **Debian Bookworm (glibc) base** — Alpine musl causes SIGILL on Chromium

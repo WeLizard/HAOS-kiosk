@@ -1,0 +1,69 @@
+{
+  "title": "Weather",
+  "location": "Saint Petersburg",
+  "todayCaption": "Today",
+  "todayValue": "Today",
+  "todayLabel": "Wednesday",
+  "updatedCaption": "Updated",
+  "updatedAt": "07:20",
+  "temperature": "3",
+  "unit": "C",
+  "condition": "Bright sky with high cloud cover",
+  "feelsLike": "Feels like 1 C and stays calm through the morning.",
+  "badgeSummary": "Current snapshot",
+  "badgeRange": "Today and next 5 days",
+  "metrics": {
+    "humidity": "61%",
+    "pressure": "1017 hPa",
+    "wind": "12 km/h",
+    "clouds": "38%"
+  },
+  "forecastTitle": "Weekly rhythm",
+  "forecast": [
+    {
+      "name": "thu",
+      "dayNumber": "07",
+      "monthShort": "mar",
+      "note": "partly cloudy",
+      "max": "4 C",
+      "min": "-1 C",
+      "icon": "./assets/cloud-sun.svg"
+    },
+    {
+      "name": "fri",
+      "dayNumber": "08",
+      "monthShort": "mar",
+      "note": "light rain",
+      "max": "5 C",
+      "min": "0 C",
+      "icon": "./assets/cloud-rain.svg"
+    },
+    {
+      "name": "sat",
+      "dayNumber": "09",
+      "monthShort": "mar",
+      "note": "clear break",
+      "max": "6 C",
+      "min": "1 C",
+      "icon": "./assets/sun.svg"
+    },
+    {
+      "name": "sun",
+      "dayNumber": "10",
+      "monthShort": "mar",
+      "note": "steady clouds",
+      "max": "4 C",
+      "min": "0 C",
+      "icon": "./assets/cloud.svg"
+    },
+    {
+      "name": "mon",
+      "dayNumber": "11",
+      "monthShort": "mar",
+      "note": "soft showers",
+      "max": "5 C",
+      "min": "2 C",
+      "icon": "./assets/cloud-rain.svg"
+    }
+  ]
+}

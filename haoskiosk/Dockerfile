@@ -50,6 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
      onboard \
      unclutter-xfixes \
      fonts-dejavu-core \
+     fonts-noto-color-emoji \
 ### Linux utils
      bash \
      util-linux \
@@ -90,6 +91,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev \
 COPY xorg.conf.default /etc/X11/
 COPY userconf.lua /root/.config/luakit/
 COPY translations/*.yaml /translations/
+
+##### kiosk-scene hosted runtime (synced to /config/kiosk-scene/scene-runtime/ at startup)
+COPY scene-runtime/ /opt/scene-runtime/
 
 COPY run.sh /
 RUN chmod a+x /run.sh

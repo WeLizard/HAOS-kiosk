@@ -1,0 +1,2419 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Kiosk Scene Live2D</title>
+  <style>
+    :root {
+      --bg-1: #edf4fb;
+      --bg-2: #d8e9f3;
+      --bg-3: #fafcfe;
+      --ink: #223244;
+      --muted: rgba(34, 50, 68, 0.66);
+      --line: rgba(34, 50, 68, 0.12);
+      --accent: #6f96ae;
+      --warn: #d88452;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      font-family: "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.92), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(123, 161, 185, 0.24), transparent 34%),
+        linear-gradient(155deg, var(--bg-1), var(--bg-2) 48%, var(--bg-3));
+    }
+    body::before,
+    body::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+    body::before {
+      width: 240px;
+      height: 240px;
+      top: -50px;
+      right: -40px;
+      background: rgba(255,255,255,0.55);
+      filter: blur(4px);
+    }
+    body::after {
+      width: 300px;
+      height: 300px;
+      left: -120px;
+      bottom: -120px;
+      background: rgba(123, 161, 185, 0.18);
+      filter: blur(6px);
+    }
+    .shell {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      padding: 14px;
+    }
+    .frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+      border-radius: 28px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.66), rgba(255,255,255,0.38));
+      box-shadow: 0 18px 50px rgba(90, 112, 132, 0.14);
+      backdrop-filter: blur(14px);
+    }
+    .frame.display-mode #badge,
+    .frame.display-mode #status,
+    .frame.display-mode #meta {
+      display: none;
+    }
+    .frame.display-mode #message {
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      font-size: 12px;
+      line-height: 1.32;
+      pointer-events: none;
+    }
+    #badge {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      z-index: 2;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.8);
+      color: var(--ink);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid rgba(34, 50, 68, 0.08);
+      cursor: pointer;
+    }
+    #status {
+      position: absolute;
+      right: 18px;
+      bottom: 16px;
+      z-index: 2;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.8);
+      color: var(--ink);
+      font-size: 12px;
+      border: 1px solid rgba(34, 50, 68, 0.08);
+      cursor: pointer;
+    }
+    #status.busy {
+      color: #8b4e1b;
+      border-color: rgba(216, 132, 82, 0.26);
+      background: rgba(255, 243, 234, 0.86);
+    }
+    #status.stale {
+      color: #6a6a6a;
+    }
+    #message {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 58px;
+      z-index: 2;
+      display: none;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.82);
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.35;
+      border: 1px solid rgba(34, 50, 68, 0.08);
+      box-shadow: 0 10px 24px rgba(90, 112, 132, 0.12);
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+    }
+    #message.show {
+      display: block;
+    }
+    #touch-debug {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      top: 12px;
+      z-index: 5;
+      display: none;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(22, 32, 44, 0.78);
+      color: #eff7ff;
+      font: 11px/1.35 "Consolas", "Cascadia Mono", monospace;
+      white-space: pre-wrap;
+      pointer-events: none;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 12px 28px rgba(10, 18, 26, 0.22);
+    }
+    .frame.debug-touch #touch-debug {
+      display: block;
+    }
+    #meta {
+      position: absolute;
+      right: 18px;
+      top: 18px;
+      z-index: 2;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.68);
+      color: var(--muted);
+      font-size: 11px;
+      border: 1px solid rgba(34, 50, 68, 0.06);
+      backdrop-filter: blur(12px);
+    }
+    #stage {
+      position: absolute;
+      inset: 0;
+      touch-action: none;
+      opacity: 0;
+      transition: opacity 280ms ease;
+    }
+    .frame.is-ready #stage {
+      opacity: 1;
+    }
+    #fallback-portrait {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center top;
+      display: block;
+      padding: 18px 10px 0;
+      filter: drop-shadow(0 24px 36px rgba(90, 112, 132, 0.16));
+      pointer-events: none;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 220ms ease, visibility 220ms ease;
+    }
+    body.is-loading #fallback-portrait,
+    #fallback-portrait.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+    #loading-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.92), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(123, 161, 185, 0.16), transparent 36%),
+        linear-gradient(180deg, rgba(245, 250, 253, 0.92), rgba(235, 244, 250, 0.82));
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 220ms ease, visibility 220ms ease;
+      pointer-events: none;
+    }
+    body.is-loading #loading-overlay {
+      opacity: 1;
+      visibility: visible;
+    }
+    .loading-panel {
+      min-width: 190px;
+      display: grid;
+      justify-items: center;
+      gap: 10px;
+      padding: 18px 22px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(34, 50, 68, 0.08);
+      box-shadow: 0 18px 36px rgba(90, 112, 132, 0.14);
+      backdrop-filter: blur(14px);
+      text-align: center;
+    }
+    .loading-spinner {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 3px solid rgba(111, 150, 174, 0.18);
+      border-top-color: var(--accent);
+      animation: neiri-spin 0.9s linear infinite;
+    }
+    .loading-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .loading-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      max-width: 220px;
+    }
+    @keyframes neiri-spin {
+      to { transform: rotate(360deg); }
+    }
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body class="is-loading">
+  <div class="shell">
+    <div class="frame" id="frame">
+      <div id="badge">Assistant</div>
+      <div id="meta">режим совместимости</div>
+      <img id="fallback-portrait" src="" alt="Avatar portrait">
+      <div id="loading-overlay" aria-live="polite">
+        <div class="loading-panel">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <div class="loading-title">Загружаю аватар</div>
+          <div class="loading-subtitle" id="loading-subtitle">Поднимаю сцену…</div>
+        </div>
+      </div>
+      <div id="stage"></div>
+      <div id="message"></div>
+      <div id="touch-debug"></div>
+      <div id="status">Статичный портрет</div>
+    </div>
+  </div>
+
+  <script src="./assets/vendor/pixi-legacy.min.js"></script>
+  <script src="./assets/vendor/live2dcubismcore.min.js"></script>
+  <script src="./assets/vendor/cubism4.min.js"></script>
+    <script>
+    const frameEl = document.getElementById('frame');
+    const stage = document.getElementById('stage');
+    const badgeEl = document.getElementById('badge');
+    const metaEl = document.getElementById('meta');
+    const messageEl = document.getElementById('message');
+    const touchDebugEl = document.getElementById('touch-debug');
+    const statusEl = document.getElementById('status');
+    const fallbackPortraitEl = document.getElementById('fallback-portrait');
+    const loadingSubtitleEl = document.getElementById('loading-subtitle');
+    const SEARCH_PARAMS = new URLSearchParams(window.location.search);
+    const EXPLICIT_RENDERER_CONFIG_URL = SEARCH_PARAMS.get('rendererConfigUrl') || '';
+    const RENDERER_CONFIG_URL = EXPLICIT_RENDERER_CONFIG_URL || './renderer.config.json';
+    const AVATAR_MANIFEST_URL = './avatar.manifest.json';
+    const DEFAULT_RENDERER_CONFIG = {
+      version: 1,
+      assistant: { name: 'Assistant' },
+      links: { appUrl: '/app/openclaw_assistant' },
+      state: {
+        stateUrl: '/local/live2d/state.json'
+      },
+      assetPack: {
+        modelJson: '',
+        fallbackPortrait: '',
+        motionMapUrl: ''
+      }
+    };
+    const COMPATIBLE_MODEL_FALLBACKS = [
+      {
+        primaryModelJson: '/local/live2d/haru-pro/haru_greeter_t05.model3.json',
+        fallbackModelJson: '/local/live2d/haru/haru_greeter_t03.model3.json',
+        fallbackPortrait: '/local/live2d/haru/haru_greeter_t03.2048/texture_00.png',
+        label: 'haru-t03'
+      }
+    ];
+    const IS_DISPLAY_MODE = SEARCH_PARAMS.get('display') === '1';
+    const TOUCH_DEBUG = SEARCH_PARAMS.get('debug') === 'touch';
+    const TYPEWRITER_START_DELAY_MS = 220;
+    const MOUTH_OPEN_PARAM = 'ParamMouthOpenY';
+    const MOUTH_FORM_PARAM = 'ParamMouthForm';
+    const STALE_MS = 15 * 60 * 1000;
+    const POLL_MS = 2500;
+    const TARGET_FPS_IDLE = 24;
+    const TARGET_FPS_ACTIVE = 60;
+    let rendererConfig = DEFAULT_RENDERER_CONFIG;
+
+    const DEFAULT_MOTION_MAP = {
+    "motions":  [
+                    {
+                        "index":  0,
+                        "id":  "m00",
+                        "label":  "пїЅпїЅпїЅпїЅ",
+                        "durationSec":  10,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ idle.",
+                        "tags":  [
+                                     "idle",
+                                     "default"
+                                 ]
+                    },
+                    {
+                        "index":  1,
+                        "id":  "m01",
+                        "label":  "пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  2.9,
+                        "description":  "пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "nod",
+                                     "reply_soft",
+                                     "touch"
+                                 ]
+                    },
+                    {
+                        "index":  2,
+                        "id":  "m02",
+                        "label":  "пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  2.03,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "greet",
+                                     "polite",
+                                     "touch"
+                                 ]
+                    },
+                    {
+                        "index":  3,
+                        "id":  "m03",
+                        "label":  "пїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  4.63,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "dry_reply",
+                                     "judging"
+                                 ]
+                    },
+                    {
+                        "index":  4,
+                        "id":  "m04",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  5.3,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "dry_reply",
+                                     "mild_annoyed",
+                                     "sigh"
+                                 ]
+                    },
+                    {
+                        "index":  5,
+                        "id":  "m05",
+                        "label":  "пїЅ-пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  2.03,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "surprise",
+                                     "alert"
+                                 ]
+                    },
+                    {
+                        "index":  6,
+                        "id":  "m06",
+                        "label":  "пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  4.53,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "think",
+                                     "ponder_left"
+                                 ]
+                    },
+                    {
+                        "index":  7,
+                        "id":  "m07",
+                        "label":  "пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  3.93,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "think",
+                                     "ponder_right"
+                                 ]
+                    },
+                    {
+                        "index":  8,
+                        "id":  "m08",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  4.6,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "greet",
+                                     "welcome",
+                                     "polite"
+                                 ]
+                    },
+                    {
+                        "index":  9,
+                        "id":  "m09",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  4.03,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "calm",
+                                     "breath"
+                                 ]
+                    },
+                    {
+                        "index":  10,
+                        "id":  "m10",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  5.53,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "surprise",
+                                     "big_react"
+                                 ]
+                    },
+                    {
+                        "index":  11,
+                        "id":  "m11",
+                        "label":  "пїЅпїЅ-пїЅпїЅ-пїЅпїЅ",
+                        "durationSec":  3.43,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "warning",
+                                     "no",
+                                     "disagree"
+                                 ]
+                    },
+                    {
+                        "index":  12,
+                        "id":  "m12",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  4.93,
+                        "description":  "ЖёпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "refuse",
+                                     "hard_no"
+                                 ]
+                    },
+                    {
+                        "index":  13,
+                        "id":  "m13",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  2.53,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "surprise",
+                                     "startled"
+                                 ]
+                    },
+                    {
+                        "index":  14,
+                        "id":  "m14",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  3.03,
+                        "description":  "ЛёпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "surprise",
+                                     "ready"
+                                 ]
+                    },
+                    {
+                        "index":  15,
+                        "id":  "m15",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  5.33,
+                        "description":  "ТёпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "approve",
+                                     "happy",
+                                     "reply_warm"
+                                 ]
+                    },
+                    {
+                        "index":  16,
+                        "id":  "m16",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  4,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "soft_no",
+                                     "plead",
+                                     "embarrassed"
+                                 ]
+                    },
+                    {
+                        "index":  17,
+                        "id":  "m17",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  4.5,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "shy",
+                                     "embarrassed",
+                                     "touch"
+                                 ]
+                    },
+                    {
+                        "index":  18,
+                        "id":  "m18",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  3.2,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "cute",
+                                     "soft",
+                                     "touch"
+                                 ]
+                    },
+                    {
+                        "index":  19,
+                        "id":  "m19",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  8,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "calm",
+                                     "idle_soft"
+                                 ]
+                    },
+                    {
+                        "index":  20,
+                        "id":  "m20",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  6.03,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "think",
+                                     "sad_think",
+                                     "busy"
+                                 ]
+                    },
+                    {
+                        "index":  21,
+                        "id":  "m21",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  5,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "reply_excited",
+                                     "success",
+                                     "happy"
+                                 ]
+                    },
+                    {
+                        "index":  22,
+                        "id":  "m22",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  5.03,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "cute",
+                                     "soft_reply",
+                                     "touch"
+                                 ]
+                    },
+                    {
+                        "index":  23,
+                        "id":  "m23",
+                        "label":  "пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  4,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "knowing",
+                                     "reply_soft",
+                                     "touch"
+                                 ]
+                    },
+                    {
+                        "index":  24,
+                        "id":  "m24",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  3.4,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "warning",
+                                     "annoyed",
+                                     "error"
+                                 ]
+                    },
+                    {
+                        "index":  25,
+                        "id":  "m25",
+                        "label":  "пїЅ_пїЅ",
+                        "durationSec":  4.03,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "surprise",
+                                     "shock"
+                                 ]
+                    },
+                    {
+                        "index":  26,
+                        "id":  "m26",
+                        "label":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                        "durationSec":  4.97,
+                        "description":  "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.",
+                        "tags":  [
+                                     "confused",
+                                     "lost",
+                                     "error"
+                                 ]
+                    }
+                ],
+    "semantic":  {
+                     "idle":  0,
+                     "idle_soft":  [
+                                       19,
+                                       0
+                                   ],
+                     "greet":  [
+                                   8,
+                                   2
+                               ],
+                     "nod":  1,
+                     "touch":  [
+                                   1,
+                                   2,
+                                   18,
+                                   22
+                               ],
+                     "think":  [
+                                   6,
+                                   7,
+                                   20
+                               ],
+                     "calm":  [
+                                  9,
+                                  19
+                              ],
+                     "reply":  [
+                                   1,
+                                   15,
+                                   23
+                               ],
+                     "reply_soft":  [
+                                        1,
+                                        15,
+                                        22,
+                                        23
+                                    ],
+                     "reply_excited":  21,
+                     "reply_dry":  [
+                                       3,
+                                       4,
+                                       23
+                                   ],
+                     "approve":  [
+                                     15,
+                                     21
+                                 ],
+                     "shy":  [
+                                 17,
+                                 18,
+                                 22
+                             ],
+                     "surprise":  [
+                                      5,
+                                      10,
+                                      13,
+                                      14,
+                                      25
+                                  ],
+                     "error":  [
+                                   24,
+                                   26,
+                                   11
+                               ],
+                     "refuse":  [
+                                    12,
+                                    16,
+                                    11
+                                ],
+                     "warning":  [
+                                     11,
+                                     24
+                                 ],
+                     "cute":  [
+                                  17,
+                                  18,
+                                  22
+                              ],
+                     "confused":  [
+                                      25,
+                                      26
+                                  ]
+                 }
+};
+
+    window.VIEW_PRESETS = window.VIEW_PRESETS || {
+      full: { scale: 1, x: 0, y: 0 },
+      torso: { scale: 2.15, x: 0, y: 91 },
+      head: { scale: 3.1, x: 0, y: 65 }
+    };
+
+    function deepMergeConfig(base, override) {
+      const result = { ...(base || {}) };
+      if (!override || typeof override !== 'object') {
+        return result;
+      }
+      Object.entries(override).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          result[key] = value.slice();
+          return;
+        }
+        if (value && typeof value === 'object') {
+          result[key] = deepMergeConfig(result[key] || {}, value);
+          return;
+        }
+        result[key] = value;
+      });
+      return result;
+    }
+
+    function withTrailingSlash(value) {
+      return value.endsWith('/') ? value : `${value}/`;
+    }
+
+    function resolveIngressRoot(baseUrl = window.location.href) {
+      try {
+        const parsed = new URL(baseUrl, window.location.href);
+        const match = parsed.pathname.match(/^\/api\/hassio_ingress\/[^/]+\//);
+        if (!match) {
+          return '';
+        }
+        return new URL(match[0], parsed.origin).toString();
+      } catch {
+        return '';
+      }
+    }
+
+    function resolvePageUrl(candidate, baseUrl = window.location.href) {
+      const normalized = trimText(candidate, 1024);
+      if (!normalized) {
+        return '';
+      }
+      if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(normalized)) {
+        return normalized;
+      }
+      const resolvedBase = new URL(baseUrl, window.location.href);
+      if (normalized.startsWith('/')) {
+        const ingressRoot = resolveIngressRoot(resolvedBase.toString());
+        if (ingressRoot) {
+          return new URL(normalized.slice(1), ingressRoot).toString();
+        }
+        return new URL(normalized, resolvedBase.origin).toString();
+      }
+      return new URL(normalized, resolvedBase).toString();
+    }
+
+    function resolveAssetUrl(assetRoot, candidate) {
+      const normalized = trimText(candidate, 1024);
+      if (!normalized) {
+        return '';
+      }
+      if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(normalized)) {
+        return normalized;
+      }
+      if (normalized.startsWith('/')) {
+        return resolvePageUrl(normalized, assetRoot || window.location.href);
+      }
+      const root = trimText(assetRoot, 1024);
+      if (!root) {
+        return resolvePageUrl(normalized);
+      }
+      return new URL(normalized, withTrailingSlash(root)).toString();
+    }
+
+    async function loadManifestAssetPackFallback() {
+      try {
+        const manifestUrl = resolvePageUrl(AVATAR_MANIFEST_URL);
+        const response = await fetch(`${manifestUrl}${manifestUrl.includes('?') ? '&' : '?'}ts=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Manifest HTTP ${response.status}`);
+        }
+        const manifest = await response.json();
+        const manifestBaseUrl = new URL(manifestUrl, window.location.href).toString();
+        const assetRoot = resolvePageUrl(
+          trimText(manifest && manifest.assetRoot, 1024) || './assets',
+          manifestBaseUrl,
+        );
+        const modelJson = resolveAssetUrl(assetRoot, trimText(manifest && (manifest.modelUrl || manifest.entry), 1024));
+        if (!modelJson) {
+          return null;
+        }
+        const presetThumbs = Object.fromEntries(
+          Object.entries((manifest && manifest.presetThumbs) || {})
+            .map(([key, value]) => [trimText(key, 32), resolveAssetUrl(assetRoot, value)])
+            .filter(([key, value]) => key && value),
+        );
+        return {
+          assetPack: {
+            modelJson,
+            fallbackPortrait: resolveAssetUrl(assetRoot, trimText(manifest && manifest.fallbackPortrait, 1024)),
+            motionMapUrl: resolveAssetUrl(assetRoot, trimText(manifest && manifest.motionMapUrl, 1024)),
+            presetThumbs,
+          },
+        };
+      } catch (error) {
+        console.warn('Failed to load avatar manifest fallback', error);
+        return null;
+      }
+    }
+
+    async function loadRendererConfig() {
+      const explicitRendererConfigUrl = trimText(EXPLICIT_RENDERER_CONFIG_URL, 2048);
+      if (explicitRendererConfigUrl) {
+        try {
+          const requestUrl = explicitRendererConfigUrl.startsWith('blob:')
+            ? explicitRendererConfigUrl
+            : `${explicitRendererConfigUrl}${explicitRendererConfigUrl.includes('?') ? '&' : '?'}ts=${Date.now()}`;
+          const response = await fetch(requestUrl, { cache: 'no-store' });
+          if (!response.ok) {
+            throw new Error(`Renderer config HTTP ${response.status}`);
+          }
+          const payload = await response.json();
+          rendererConfig = deepMergeConfig(DEFAULT_RENDERER_CONFIG, payload || {});
+          applyRendererConfig();
+          return;
+        } catch (error) {
+          console.warn('Failed to load explicit renderer config', error);
+        }
+      }
+      const fromParent = await requestParentRendererConfig();
+      if (fromParent && getModelJsonUrl()) {
+        return;
+      }
+      try {
+        const response = await fetch(`${RENDERER_CONFIG_URL}?ts=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Renderer config HTTP ${response.status}`);
+        }
+        const payload = await response.json();
+        rendererConfig = deepMergeConfig(DEFAULT_RENDERER_CONFIG, payload || {});
+      } catch (error) {
+        console.warn('Failed to load renderer config', error);
+        rendererConfig = deepMergeConfig(DEFAULT_RENDERER_CONFIG, {});
+      }
+      if (!getModelJsonUrl()) {
+        const manifestFallback = await loadManifestAssetPackFallback();
+        if (manifestFallback) {
+          rendererConfig = deepMergeConfig(rendererConfig, manifestFallback);
+        }
+      }
+      applyRendererConfig();
+    }
+
+    function applyRendererConfig() {
+      const assistantName = trimText(rendererConfig && rendererConfig.assistant && rendererConfig.assistant.name, 40) || 'Assistant';
+      badgeEl.textContent = assistantName;
+      fallbackPortraitEl.alt = assistantName;
+    }
+
+    function applyPixiCompatibilitySettings() {
+      if (!window.PIXI || !PIXI.settings || !PIXI.ENV) {
+        return;
+      }
+      // WebGL1 always — WebGL2 on ANGLE hangs the main thread
+      PIXI.settings.PREFER_ENV = PIXI.ENV.WEBGL;
+      // Mipmaps for smoother downscaled textures
+      if (PIXI.MIPMAP_MODES && Object.prototype.hasOwnProperty.call(PIXI.MIPMAP_MODES, 'ON')) {
+        PIXI.settings.MIPMAP_TEXTURES = PIXI.MIPMAP_MODES.ON;
+      }
+      if (PIXI.SCALE_MODES && Object.prototype.hasOwnProperty.call(PIXI.SCALE_MODES, 'LINEAR')) {
+        PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.LINEAR;
+      }
+      if (Object.prototype.hasOwnProperty.call(PIXI.settings, 'ANISOTROPIC_LEVEL')) {
+        PIXI.settings.ANISOTROPIC_LEVEL = 4;
+      }
+      PIXI.settings.FAIL_IF_MAJOR_PERFORMANCE_CAVEAT = false;
+    }
+
+    function getRenderResolution() {
+      const devicePixelRatio = Number(window.devicePixelRatio || 1);
+      if (!Number.isFinite(devicePixelRatio) || devicePixelRatio <= 1) {
+        return 1;
+      }
+      if (!IS_DISPLAY_MODE) {
+        return Math.min(devicePixelRatio, 2);
+      }
+      return Math.min(devicePixelRatio, 1.5);
+    }
+
+    function shouldUseAntialias() {
+      return true;
+    }
+
+    function getStateUrl() {
+      return resolvePageUrl(
+        trimText(rendererConfig && rendererConfig.state && rendererConfig.state.stateUrl, 512)
+          || DEFAULT_RENDERER_CONFIG.state.stateUrl
+      );
+    }
+
+    function getMotionMapUrl() {
+      return resolvePageUrl(
+        trimText(rendererConfig && rendererConfig.assetPack && rendererConfig.assetPack.motionMapUrl, 512)
+          || DEFAULT_RENDERER_CONFIG.assetPack.motionMapUrl
+      );
+    }
+
+    function getModelJsonUrl() {
+      return resolvePageUrl(
+        trimText(rendererConfig && rendererConfig.assetPack && rendererConfig.assetPack.modelJson, 512)
+          || DEFAULT_RENDERER_CONFIG.assetPack.modelJson
+      );
+    }
+
+    function getFallbackPortraitUrl() {
+      return resolvePageUrl(
+        trimText(rendererConfig && rendererConfig.assetPack && rendererConfig.assetPack.fallbackPortrait, 512)
+          || DEFAULT_RENDERER_CONFIG.assetPack.fallbackPortrait
+      );
+    }
+
+    function syncFallbackPortrait(url) {
+      const portrait = trimText(url, 512) || getFallbackPortraitUrl() || getPresetThumbUrl();
+      if (portrait) {
+        fallbackPortraitEl.src = portrait;
+        return;
+      }
+      fallbackPortraitEl.removeAttribute('src');
+    }
+
+    function getPresetThumbUrl() {
+      const presetThumbs = rendererConfig && rendererConfig.assetPack && rendererConfig.assetPack.presetThumbs;
+      return trimText(
+        presetThumbs && (presetThumbs[currentViewPreset] || presetThumbs.full),
+        512,
+      );
+    }
+
+    function uniqueAssetCandidates(items) {
+      const seen = new Set();
+      return items.filter((item) => {
+        const modelJson = trimText(item && item.modelJson, 512);
+        if (!modelJson || seen.has(modelJson)) {
+          return false;
+        }
+        seen.add(modelJson);
+        return true;
+      });
+    }
+
+    function normalizeAssetPath(url) {
+      const target = trimText(url, 512);
+      if (!target) {
+        return '';
+      }
+      try {
+        return new URL(target, window.location.href).pathname;
+      } catch (_) {
+        return target;
+      }
+    }
+
+    function getModelAssetCandidates() {
+      const primaryModelJson = getModelJsonUrl();
+      const primaryPortrait = getFallbackPortraitUrl();
+      const candidates = [];
+      if (primaryModelJson) {
+        candidates.push({
+          modelJson: primaryModelJson,
+          fallbackPortrait: primaryPortrait,
+          label: 'primary'
+        });
+      }
+      COMPATIBLE_MODEL_FALLBACKS.forEach((entry) => {
+        if (normalizeAssetPath(primaryModelJson) === normalizeAssetPath(entry.primaryModelJson)) {
+          candidates.push({
+            modelJson: entry.fallbackModelJson,
+            fallbackPortrait: entry.fallbackPortrait,
+            label: entry.label
+          });
+        }
+      });
+      return uniqueAssetCandidates(candidates);
+    }
+
+    async function assetExists(url) {
+      const target = trimText(url, 512);
+      if (!target) {
+        return false;
+      }
+      const probeUrl = `${target}${target.includes('?') ? '&' : '?'}probe=${Date.now()}`;
+      try {
+        const response = await fetch(probeUrl, { method: 'GET', cache: 'no-store' });
+        return response.ok;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    async function resolveAvailableModelCandidates() {
+      const candidates = getModelAssetCandidates();
+      const existing = [];
+      for (const candidate of candidates) {
+        if (await assetExists(candidate.modelJson)) {
+          existing.push(candidate);
+        }
+      }
+      return existing;
+    }
+
+    async function resolveAvailablePortraitUrl(candidate) {
+      return trimText(candidate && candidate.fallbackPortrait, 512);
+    }
+
+    function getAppUrl() {
+      return trimText(rendererConfig && rendererConfig.links && rendererConfig.links.appUrl, 512) || DEFAULT_RENDERER_CONFIG.links.appUrl;
+    }
+
+    function requestParentRendererConfig() {
+      return new Promise((resolve) => {
+        if (!window.parent || window.parent === window) {
+          resolve(false);
+          return;
+        }
+        let settled = false;
+        pendingRendererConfigResolver = () => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          resolve(true);
+        };
+        try {
+          window.parent.postMessage({ type: 'neiri-renderer-config-request' }, '*');
+        } catch (_) {
+          pendingRendererConfigResolver = null;
+          resolve(false);
+          return;
+        }
+        window.setTimeout(() => {
+          if (settled) {
+            return;
+          }
+          pendingRendererConfigResolver = null;
+          settled = true;
+          resolve(false);
+        }, 600);
+      });
+    }
+
+    function trimText(value, max = 160) {
+      const text = String(value || '').replace(/\s+/g, ' ').trim();
+      if (!text) return '';
+      return text.length > max ? (text.slice(0, Math.max(0, max - 1)).trimEnd() + 'вЂ¦') : text;
+    }
+
+
+    let app;
+    let model;
+    let motionMap = DEFAULT_MOTION_MAP;
+    let busyMotionTimer = null;
+    let messageTimer = null;
+    let motionResetTimer = null;
+    let pendingRendererConfigResolver = null;
+    let lastRevision = null;
+    let lastStateAt = 0;
+    let lastBusyState = false;
+    let lastOnlineState = true;
+    let lastStatusKey = '';
+    let statePollingStarted = false;
+    let statePollingTimer = null;
+    let displaySleepPaused = false;
+    let lastExternalStateAt = 0;
+    let currentMotionIndex = 0;
+    let viewState = { scale: 1, x: 0, y: 0 };
+    let baseModelSize = null;
+    let pointers = new Map();
+    let dragStart = null;
+    let pinchStartDistance = 0;
+    let pinchStartScale = 1;
+    let suppressMouseUntil = 0;
+    let lastPointerInputAt = 0;
+    let lastTouchInputAt = 0;
+    let mouseFallbackActive = false;
+    let lipSyncTimer = null;
+    let lipSyncDecayTimer = null;
+    let lipSyncTickerAttached = false;
+    let externalBubbleText = '';
+    let externalBubbleKey = '';
+    let typewriterTimer = null;
+    let activeMessageKey = '';
+    let activeMessageText = '';
+    let currentViewPreset = 'full';
+    let lipSyncState = {
+      active: false,
+      open: 0,
+      form: 0,
+      updatedAt: 0,
+    };
+    const lipParamCache = {
+      openId: null,
+      formId: null,
+    };
+    const semanticCursor = new Map();
+    const touchDebugLines = [];
+
+    if (TOUCH_DEBUG) {
+      frameEl.classList.add('debug-touch');
+      setTouchDebug('touch debug ready');
+    }
+
+    function openNeiri() {
+      if (IS_DISPLAY_MODE) {
+        return;
+      }
+      try {
+        window.top.location.href = getAppUrl();
+      } catch (_) {
+        window.location.href = getAppUrl();
+      }
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function setTouchDebug(text) {
+      if (!TOUCH_DEBUG || !touchDebugEl) {
+        return;
+      }
+      touchDebugEl.textContent = text;
+    }
+
+    function pushTouchDebug(line) {
+      if (!TOUCH_DEBUG) {
+        return;
+      }
+      touchDebugLines.push(`${new Date().toLocaleTimeString('ru-RU')} ${line}`);
+      while (touchDebugLines.length > 8) {
+        touchDebugLines.shift();
+      }
+      setTouchDebug(touchDebugLines.join('\n'));
+    }
+
+    function pointerKeys() {
+      return Array.from(pointers.keys()).join(', ') || '-';
+    }
+
+    function resetInputs(reason = 'reset') {
+      pointers.clear();
+      dragStart = null;
+      pinchStartDistance = 0;
+      pinchStartScale = viewState.scale;
+      mouseFallbackActive = false;
+      setNeutralFocus(true);
+      pushTouchDebug(`${reason} | pointers=${pointerKeys()} scale=${viewState.scale.toFixed(2)}`);
+    }
+
+    function shouldHandleTouchFallback() {
+      return !window.PointerEvent || (Date.now() - lastPointerInputAt) > 450;
+    }
+
+    function recentPrimaryInputAt() {
+      return Math.max(lastPointerInputAt, lastTouchInputAt);
+    }
+
+    function getCubismId(paramName) {
+      const cacheKey = paramName === MOUTH_OPEN_PARAM ? 'openId' : 'formId';
+      if (lipParamCache[cacheKey]) {
+        return lipParamCache[cacheKey];
+      }
+      try {
+        const framework = window.PIXI && PIXI.live2d && PIXI.live2d.CubismFramework;
+        if (framework && typeof framework.getIdManager === 'function') {
+          const idManager = framework.getIdManager();
+          if (idManager && typeof idManager.getId === 'function') {
+            lipParamCache[cacheKey] = idManager.getId(paramName);
+            return lipParamCache[cacheKey];
+          }
+        }
+      } catch (_) {}
+      lipParamCache[cacheKey] = paramName;
+      return lipParamCache[cacheKey];
+    }
+
+    function getCoreModel() {
+      if (!model || !model.internalModel) {
+        return null;
+      }
+      return model.internalModel.coreModel || model.internalModel._coreModel || model.internalModel.model || null;
+    }
+
+    function setLipSyncValue(open = 0, form = 0) {
+      lipSyncState.open = clamp(Number(open) || 0, 0, 1);
+      lipSyncState.form = clamp(Number(form) || 0, -1, 1);
+      lipSyncState.updatedAt = Date.now();
+    }
+
+    function writeCoreParameter(coreModel, paramName, value) {
+      if (!coreModel) {
+        return false;
+      }
+      const paramId = getCubismId(paramName);
+      try {
+        if (typeof coreModel.setParameterValueById === 'function') {
+          coreModel.setParameterValueById(paramId, value, 1);
+          return true;
+        }
+      } catch (_) {}
+      try {
+        if (typeof coreModel.getParameterIndex === 'function' && typeof coreModel.setParameterValueByIndex === 'function') {
+          let index = coreModel.getParameterIndex(paramId);
+          if (index === -1 && paramId !== paramName) {
+            index = coreModel.getParameterIndex(paramName);
+          }
+          if (index !== -1) {
+            coreModel.setParameterValueByIndex(index, value, 1);
+            return true;
+          }
+        }
+      } catch (_) {}
+      return false;
+    }
+
+    function applyLipSyncFrame() {
+      if (!lipSyncState.active && lipSyncState.open <= 0.001 && Math.abs(lipSyncState.form) <= 0.001) {
+        return;
+      }
+      const coreModel = getCoreModel();
+      if (!coreModel) {
+        return;
+      }
+      writeCoreParameter(coreModel, MOUTH_OPEN_PARAM, lipSyncState.open);
+      writeCoreParameter(coreModel, MOUTH_FORM_PARAM, lipSyncState.form);
+    }
+
+    function ensureLipSyncTicker() {
+      if (!app || lipSyncTickerAttached) {
+        return;
+      }
+      app.ticker.add(() => {
+        applyLipSyncFrame();
+      });
+      lipSyncTickerAttached = true;
+    }
+
+    function stopLipSync({ decay = true } = {}) {
+      window.clearTimeout(lipSyncTimer);
+      window.clearTimeout(lipSyncDecayTimer);
+      lipSyncTimer = null;
+      lipSyncDecayTimer = null;
+      lipSyncState.active = false;
+      if (decay) {
+        setLipSyncValue(0.08, 0);
+        lipSyncDecayTimer = window.setTimeout(() => {
+          setLipSyncValue(0, 0);
+          if (app && app.ticker) { app.ticker.maxFPS = TARGET_FPS_IDLE; }
+        }, 120);
+      } else {
+        setLipSyncValue(0, 0);
+        if (app && app.ticker) { app.ticker.maxFPS = TARGET_FPS_IDLE; }
+      }
+    }
+
+    function classifyPhoneme(ch, index) {
+      if (!ch) {
+        return { open: 0, form: 0, hold: 40 };
+      }
+      if (/\s/.test(ch)) {
+        return { open: 0, form: 0, hold: 38 };
+      }
+      if (/[.!?вЂ¦]/.test(ch)) {
+        return { open: 0, form: 0, hold: 170 };
+      }
+      if (/[,;:вЂ”-]/.test(ch)) {
+        return { open: 0.05, form: -0.04, hold: 105 };
+      }
+      if (/[бпм]/i.test(ch)) {
+        return { open: 0.18, form: -0.16, hold: 52 };
+      }
+      if (/[вф]/i.test(ch)) {
+        return { open: 0.26, form: 0.14, hold: 48 };
+      }
+      if (/[лрнтдсзкгхцчшщйjqwx]/i.test(ch)) {
+        return { open: 0.34, form: 0.02, hold: 52 };
+      }
+      if (/[еиёюяaeiy]/i.test(ch)) {
+        const wobble = ((index % 3) - 1) * 0.04;
+        return { open: 0.58 + wobble, form: 0.34, hold: 60 };
+      }
+      if (/[аоуыэaou]/i.test(ch)) {
+        const wobble = ((index % 4) - 1.5) * 0.05;
+        return { open: 0.74 + wobble, form: 0.02, hold: 68 };
+      }
+      return { open: 0.42, form: 0.05, hold: 56 };
+    }
+
+    function buildLipSyncFrames(text) {
+      const chars = Array.from(String(text || '').trim()).slice(0, 260);
+      const frames = [];
+      for (let index = 0; index < chars.length; index += 1) {
+        const frame = classifyPhoneme(chars[index], index);
+        frames.push(frame);
+      }
+      return frames;
+    }
+
+    function typingDelayForChar(ch) {
+      if (!ch) return 72;
+      if (/\s/.test(ch)) return 78 + Math.floor(Math.random() * 28);
+      if (/[.!?вЂ¦]/.test(ch)) return 420 + Math.floor(Math.random() * 180);
+      if (/[,;:вЂ”-]/.test(ch)) return 250 + Math.floor(Math.random() * 110);
+      if (/[аеёиоуыэюяaeiouy]/i.test(ch)) return 126 + Math.floor(Math.random() * 42);
+      return 98 + Math.floor(Math.random() * 34);
+    }
+
+    function clearTypingAnimation() {
+      window.clearTimeout(typewriterTimer);
+      typewriterTimer = null;
+    }
+
+    function speakText(text) {
+      const frames = buildLipSyncFrames(text);
+      if (!frames.length) {
+        stopLipSync({ decay: false });
+        return;
+      }
+      stopLipSync({ decay: false });
+      lipSyncState.active = true;
+      if (app && app.ticker) { app.ticker.maxFPS = TARGET_FPS_ACTIVE; }
+      let cursor = 0;
+
+      const step = () => {
+        if (!lipSyncState.active || cursor >= frames.length) {
+          stopLipSync({ decay: true });
+          return;
+        }
+        const frame = frames[cursor];
+        setLipSyncValue(frame.open, frame.form);
+        cursor += 1;
+        lipSyncTimer = window.setTimeout(step, frame.hold);
+      };
+
+      typewriterTimer = window.setTimeout(step, TYPEWRITER_START_DELAY_MS);
+    }
+
+    function startLoadingState(label = 'Поднимаю сцену…') {
+      document.body.classList.add('is-loading');
+      frameEl.classList.remove('is-ready');
+      if (loadingSubtitleEl) {
+        loadingSubtitleEl.textContent = label;
+      }
+    }
+
+    function clearLoadingState() {
+      document.body.classList.remove('is-loading');
+    }
+
+    function notifyParentAvatarReady(mode = 'live2d') {
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({
+            type: 'neiri-avatar-ready',
+            mode,
+          }, '*');
+        }
+      } catch (_) {}
+    }
+
+    function markAvatarReady() {
+      clearLoadingState();
+      frameEl.classList.add('is-ready');
+      notifyParentAvatarReady('live2d');
+    }
+
+    function setMessage(text, ttlMs = 12000, options = {}) {
+      if (!text) {
+        activeMessageKey = '';
+        activeMessageText = '';
+        clearTypingAnimation();
+        messageEl.textContent = '';
+        messageEl.classList.remove('show');
+        stopLipSync({ decay: false });
+        return;
+      }
+      const normalizedText = String(text);
+      const messageKey = String((options && options.key) || normalizedText);
+      const shouldType = Boolean(options && options.typewriter);
+
+      if (!options.force && activeMessageKey === messageKey && activeMessageText === normalizedText) {
+        return;
+      }
+
+      activeMessageKey = messageKey;
+      activeMessageText = normalizedText;
+      clearTypingAnimation();
+      window.clearTimeout(messageTimer);
+      messageEl.classList.add('show');
+
+      if (!shouldType) {
+        messageEl.textContent = normalizedText;
+        if (options && options.speak) {
+          speakText(normalizedText);
+        } else {
+          stopLipSync({ decay: false });
+        }
+        if (ttlMs > 0) {
+          messageTimer = window.setTimeout(() => {
+            messageEl.classList.remove('show');
+          }, ttlMs);
+        }
+        return;
+      }
+
+      const chars = Array.from(normalizedText);
+      let cursor = 0;
+      messageEl.textContent = '';
+      if (options && options.speak) {
+        stopLipSync({ decay: false });
+        lipSyncState.active = true;
+        if (app && app.ticker) { app.ticker.maxFPS = TARGET_FPS_ACTIVE; }
+      } else {
+        stopLipSync({ decay: false });
+      }
+
+      const step = () => {
+        if (activeMessageKey !== messageKey) {
+          return;
+        }
+        if (cursor >= chars.length) {
+          if (options && options.speak) {
+            stopLipSync({ decay: true });
+          }
+          if (ttlMs > 0) {
+            messageTimer = window.setTimeout(() => {
+              if (activeMessageKey === messageKey) {
+                messageEl.classList.remove('show');
+              }
+            }, ttlMs);
+          }
+          return;
+        }
+        const ch = chars[cursor];
+        messageEl.textContent += ch;
+        if (options && options.speak) {
+          const frame = classifyPhoneme(ch, cursor);
+          lipSyncState.active = true;
+          setLipSyncValue(frame.open, frame.form);
+        }
+        cursor += 1;
+        typewriterTimer = window.setTimeout(step, typingDelayForChar(ch));
+      };
+
+      step();
+    }
+
+    window.addEventListener('message', (event) => {
+      const payload = event && event.data;
+      if (!payload) {
+        return;
+      }
+      if (payload.type === 'kiosk-display-off') {
+        displaySleepPaused = true;
+        syncRuntimeActivity({ refreshState: false, reason: 'display off' });
+        return;
+      }
+      if (payload.type === 'kiosk-display-on') {
+        displaySleepPaused = false;
+        syncRuntimeActivity({ refreshState: true, reason: 'display on' });
+        return;
+      }
+      if (payload.type === 'neiri-renderer-config') {
+        rendererConfig = deepMergeConfig(DEFAULT_RENDERER_CONFIG, payload.config || {});
+        applyRendererConfig();
+        if (pendingRendererConfigResolver) {
+          const resolver = pendingRendererConfigResolver;
+          pendingRendererConfigResolver = null;
+          resolver();
+        }
+        return;
+      }
+      if (payload.type === 'neiri-display-state') {
+        if (payload.state && typeof payload.state === 'object') {
+          lastExternalStateAt = Date.now();
+          applyState(payload.state);
+        }
+        return;
+      }
+      if (payload.type === 'neiri-view-preset') {
+        applyViewPreset(String(payload.preset || 'full'));
+        return;
+      }
+      if (payload.type !== 'neiri-display-bubble') {
+        return;
+      }
+      externalBubbleText = String(payload.text || '').trim();
+      externalBubbleKey = String(payload.key || externalBubbleText || '');
+      if (externalBubbleText && !lastBusyState) {
+        setMessage(externalBubbleText, Number(payload.ttlMs) || 0, {
+          speak: payload.speak !== false,
+          typewriter: payload.typewriter !== false,
+          key: externalBubbleKey,
+          force: true,
+        });
+      } else if (!lastBusyState && !lastRevision) {
+        setMessage('');
+      }
+    });
+
+    function ensureBaseModelSize() {
+      if (!model) return null;
+      const scaleX = Math.max(Math.abs(Number(model.scale && model.scale.x) || 0), 0.0001);
+      const scaleY = Math.max(Math.abs(Number(model.scale && model.scale.y) || 0), 0.0001);
+      const rawWidth = Number(model.width) || 0;
+      const rawHeight = Number(model.height) || 0;
+      if (rawWidth <= 0 || rawHeight <= 0) {
+        return baseModelSize;
+      }
+      const width = rawWidth / scaleX;
+      const height = rawHeight / scaleY;
+      if (!baseModelSize || (width > 0 && height > 0)) {
+        baseModelSize = { width, height };
+      }
+      return baseModelSize;
+    }
+
+    function fitModel() {
+      if (!model || !stage) return;
+      const w = stage.clientWidth;
+      const h = stage.clientHeight;
+      const baseSize = ensureBaseModelSize();
+      const baseWidth = Math.max(Number(baseSize && baseSize.width) || 0, 1);
+      const baseHeight = Math.max(Number(baseSize && baseSize.height) || 0, 1);
+      const baseScale = Math.min(w / baseWidth, h / baseHeight) * 0.9 * viewState.scale;
+      model.scale.set(baseScale);
+      model.anchor.set(0.5, 0);
+      model.x = w * 0.5 + viewState.x;
+      model.y = h * 0.08 + viewState.y;
+    }
+
+    function setNeutralFocus(immediate = false) {
+      if (!model) return;
+      const focusController = model.internalModel && model.internalModel.focusController;
+      if (focusController && typeof focusController.focus === 'function') {
+        focusController.focus(0, 0, Boolean(immediate));
+        return;
+      }
+      const rect = stage.getBoundingClientRect();
+      model.focus(rect.left + rect.width * 0.5, rect.top + rect.height * 0.45);
+    }
+
+    function resetView() {
+      viewState = { scale: 1, x: 0, y: 0 };
+      currentViewPreset = 'full';
+      fitModel();
+      setNeutralFocus(true);
+    }
+
+    function applyViewPreset(presetName = 'full') {
+      const presetMap = window.VIEW_PRESETS || { full: { scale: 1, x: 0, y: 0 }, torso: { scale: 2.15, x: 0, y: 91 }, head: { scale: 3.1, x: 0, y: 65 } };
+      const preset = presetMap[presetName] || presetMap.full;
+      currentViewPreset = Object.prototype.hasOwnProperty.call(presetMap, presetName) ? presetName : 'full';
+      viewState = {
+        scale: clamp(Number(preset.scale) || 1, 0.65, 3.6),
+        x: Number(preset.x) || 0,
+        y: Number(preset.y) || 0,
+      };
+      fitModel();
+      setNeutralFocus(true);
+      pushTouchDebug(`preset ${currentViewPreset} scale=${viewState.scale.toFixed(2)} y=${viewState.y}`);
+      return currentViewPreset;
+    }
+
+    function pointerDistance() {
+      const pts = Array.from(pointers.values());
+      if (pts.length < 2) return 0;
+      const dx = pts[0].x - pts[1].x;
+      const dy = pts[0].y - pts[1].y;
+      return Math.hypot(dx, dy);
+    }
+
+    function getMotionDef(index) {
+      return (motionMap.motions || []).find((item) => Number(item.index) === Number(index)) || null;
+    }
+
+    function normalizePool(value) {
+      if (Array.isArray(value)) {
+        return value.map((item) => Number(item)).filter((item) => Number.isFinite(item));
+      }
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? [numeric] : [];
+    }
+
+    function nextFromPool(key, pool) {
+      if (!pool.length) return 0;
+      const cursor = semanticCursor.get(key) || 0;
+      const nextIndex = pool[cursor % pool.length];
+      semanticCursor.set(key, cursor + 1);
+      return nextIndex;
+    }
+
+    function resolveMotionIndex(target, fallback = 'idle') {
+      if (typeof target === 'number' && Number.isFinite(target)) {
+        return Number(target);
+      }
+      if (typeof target === 'string') {
+        const semanticValue = motionMap.semantic && motionMap.semantic[target];
+        const pool = normalizePool(semanticValue);
+        if (pool.length) {
+          return nextFromPool(target, pool);
+        }
+      }
+      if (fallback && fallback !== target) {
+        return resolveMotionIndex(fallback, null);
+      }
+      return 0;
+    }
+
+    function scheduleIdle(index) {
+      window.clearTimeout(motionResetTimer);
+      if (Number(index) === resolveMotionIndex('idle', null)) {
+        return;
+      }
+      const def = getMotionDef(index);
+      const durationMs = Math.round((Number(def && def.durationSec) || 0) * 1000);
+      if (durationMs <= 0) {
+        return;
+      }
+      motionResetTimer = window.setTimeout(() => {
+        playMotion('idle', { autoReturn: false, reason: 'idle reset' });
+      }, durationMs);
+    }
+
+    async function playMotion(target = 'touch', options = {}) {
+      if (!model) return null;
+      const index = resolveMotionIndex(target, 'idle');
+      currentMotionIndex = index;
+      try {
+        await model.motion('', index);
+      } catch (_) {}
+      if (options.autoReturn !== false) {
+        scheduleIdle(index);
+      }
+      return index;
+    }
+
+    function setBusyMode(isBusy) {
+      statusEl.classList.toggle('busy', Boolean(isBusy));
+      if (isBusy) {
+        if (!busyMotionTimer) {
+          busyMotionTimer = window.setInterval(() => {
+            playMotion('think', { autoReturn: true, reason: 'busy loop' });
+          }, 7000);
+        }
+        return;
+      }
+      if (busyMotionTimer) {
+        window.clearInterval(busyMotionTimer);
+        busyMotionTimer = null;
+      }
+    }
+
+    async function loadMotionMap() {
+      try {
+        const response = await fetch(`${getMotionMapUrl()}?ts=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const payload = await response.json();
+        if (payload && Array.isArray(payload.motions) && payload.semantic) {
+          motionMap = payload;
+        }
+      } catch (error) {
+        console.warn('Failed to load motion map', error);
+      }
+    }
+
+    function isRuntimeSuspended() {
+      return displaySleepPaused || document.hidden;
+    }
+
+    function stopStatePolling() {
+      if (statePollingTimer !== null) {
+        window.clearInterval(statePollingTimer);
+        statePollingTimer = null;
+      }
+    }
+
+    function destroyLive2DApp(reason = 'cleanup') {
+      if (app && app.ticker && typeof app.ticker.stop === 'function') {
+        try {
+          app.ticker.stop();
+        } catch (_) {}
+      }
+      if (model && app && app.stage && typeof app.stage.removeChild === 'function') {
+        try {
+          app.stage.removeChild(model);
+        } catch (_) {}
+      }
+      if (model && typeof model.destroy === 'function') {
+        try {
+          model.destroy({ children: true, texture: true, baseTexture: true });
+        } catch (error) {
+          console.warn('Failed to destroy Live2D model', reason, error);
+        }
+      }
+      model = null;
+      if (app && typeof app.destroy === 'function') {
+        try {
+          app.destroy(true, { children: true, texture: true, baseTexture: true });
+        } catch (error) {
+          console.warn('Failed to destroy Live2D renderer', reason, error);
+        }
+      }
+      app = null;
+      lipSyncTickerAttached = false;
+      while (stage.firstChild) {
+        stage.removeChild(stage.firstChild);
+      }
+    }
+
+    function syncRuntimeActivity({ refreshState = false, reason = 'sync' } = {}) {
+      const suspended = isRuntimeSuspended();
+      if (suspended) {
+        stopStatePolling();
+        resetInputs(reason);
+        if (app && app.ticker && typeof app.ticker.stop === 'function') {
+          app.ticker.stop();
+        }
+        return;
+      }
+      if (app && app.ticker && typeof app.ticker.start === 'function') {
+        app.ticker.start();
+      }
+      if (statePollingStarted && statePollingTimer === null) {
+        statePollingTimer = window.setInterval(refreshAvatarState, POLL_MS);
+      }
+      if (refreshState) {
+        void refreshAvatarState();
+      }
+    }
+
+    function startStatePolling() {
+      if (statePollingStarted) {
+        syncRuntimeActivity({ refreshState: false, reason: 'polling resumed' });
+        return;
+      }
+      statePollingStarted = true;
+      syncRuntimeActivity({ refreshState: true, reason: 'polling started' });
+    }
+
+    function showStaticPortrait(reason) {
+      destroyLive2DApp(reason || 'static portrait');
+      syncFallbackPortrait(getFallbackPortraitUrl());
+      clearLoadingState();
+      frameEl.classList.remove('is-ready');
+      fallbackPortraitEl.classList.remove('hidden');
+      statusEl.textContent = reason || 'Статичный портрет';
+      metaEl.textContent = 'режим совместимости';
+      setBusyMode(false);
+      notifyParentAvatarReady('static');
+      startStatePolling();
+    }
+
+    function parseAvatarDirectives(value) {
+      const result = { text: '', emotion: '', motion: '', cue: '', activity: '' };
+      if (!value) {
+        return result;
+      }
+      const found = { emotion: '', motion: '', cue: '', activity: '' };
+      const cleaned = String(value).replace(/\[(emotion|motion|cue|activity)\s*:\s*([a-z0-9_-]+)\]/gi, (_, kind, cue) => {
+        const key = String(kind || '').toLowerCase();
+        const normalizedCue = trimText(cue, 32).toLowerCase();
+        if ((key === 'emotion' || key === 'motion' || key === 'cue' || key === 'activity') && normalizedCue) {
+          found[key] = normalizedCue;
+        }
+        return ' ';
+      });
+      return {
+        text: trimText(cleaned, 220),
+        emotion: found.emotion,
+        motion: found.motion,
+        cue: found.cue,
+        activity: found.activity
+      };
+    }
+
+    function containsAny(text, needles) {
+      if (!Array.isArray(needles) || !text) {
+        return false;
+      }
+      return needles.some((needle) => Boolean(needle) && text.includes(needle));
+    }
+    function inferReplyMotionTarget(message, statusText) {
+      const text = String(message || '').trim();
+      const lower = `${String(statusText || '')} ${text}`.toLowerCase();
+      const emphatic = /[!！]{1,}/.test(text);
+
+      if (!text) {
+        return 'reply_soft';
+      }
+
+      if (containsAny(lower, [
+        'ошибка', 'error', 'forbidden', 'rate limit', '429', 'таймаут', 'не удалось', 'сбой', 'tool use',
+        'invalid', 'exception', 'traceback'
+      ])) {
+        return 'error';
+      }
+
+      if (containsAny(lower, [
+        'не могу помочь', 'не буду', 'отказываюсь', 'запрещено', 'нельзя', 'cannot help', 'i refuse', 'refuse'
+      ])) {
+        return 'refuse';
+      }
+
+      if (containsAny(lower, [
+        'предупреж', 'внимание', 'осторож', 'аккурат', 'warning', 'careful', 'ай-яй', 'ай ай'
+      ])) {
+        return 'warning';
+      }
+
+      if (containsAny(lower, [
+        'не уверен', 'растер', 'пута', 'непонят', 'confused', 'unknown', 'хм', 'сомнева', 'затрудняюсь'
+      ])) {
+        return 'confused';
+      }
+
+      if (containsAny(lower, [
+        'как и ожидал', 'я же говорила', 'предсказуемо', 'понятно же', 'как обычно', 'сухо'
+      ])) {
+        return 'reply_dry';
+      }
+
+      if (containsAny(lower, [
+        'извини', 'прости', 'смущ', 'стесня', 'неловко', 'sorry', 'apolog'
+      ])) {
+        return 'shy';
+      }
+
+      if (containsAny(lower, [
+        'мяу', 'ня', 'милаш', 'милота', 'няш', 'лапушка', 'котик', 'обним'
+      ])) {
+        return 'cute';
+      }
+
+      if (containsAny(lower, [
+        'спасибо', 'готово', 'сделано', 'получилось', 'успех', 'класс', 'супер', 'отлично', 'замечательно', 'approve'
+      ])) {
+        return emphatic ? 'reply_excited' : 'approve';
+      }
+
+      if (containsAny(lower, [
+        'ой', 'ого', 'вау', 'неожиданно', 'удивительно', 'wow', 'surprise'
+      ])) {
+        return 'surprise';
+      }
+
+      if (emphatic) {
+        return 'reply_excited';
+      }
+
+      if (text.includes('?') || containsAny(lower, [
+        'как', 'почему', 'когда', 'что если', 'возможно', 'вероятно', 'maybe', 'perhaps', 'let us'
+      ])) {
+        return 'reply_soft';
+      }
+
+      if (text.length <= 56) {
+        return 'reply_soft';
+      }
+
+      return 'reply';
+    }
+
+    function resolveStateMotionTarget(state, parsedMessage) {
+      const explicitMotion = trimText(state && state.motion, 32).toLowerCase() || parsedMessage.motion;
+      const explicitCue = trimText(state && state.cue, 32).toLowerCase() || parsedMessage.cue;
+      const explicitEmotion = trimText(state && state.emotion, 32).toLowerCase() || parsedMessage.emotion;
+      const explicitActivity = trimText(state && state.activity, 32).toLowerCase() || parsedMessage.activity;
+      const speaking = Boolean(state && state.speaking === true) || explicitActivity === 'speaking';
+      if (explicitMotion) {
+        return explicitMotion;
+      }
+      if (explicitCue) {
+        return explicitCue;
+      }
+      if (explicitEmotion) {
+        return explicitEmotion;
+      }
+
+      const statusText = trimText(state && state.status, 72);
+      const messageText = parsedMessage.text;
+      const lower = `${statusText} ${messageText}`.toLowerCase();
+
+      if ((state && state.online === false) || explicitActivity === 'offline') {
+        return 'error';
+      }
+      if (speaking) {
+        return messageText ? inferReplyMotionTarget(messageText, statusText) : 'reply_soft';
+      }
+      if ((state && state.busy) || explicitActivity === 'thinking' || explicitActivity === 'busy') {
+        return 'think';
+      }
+      if (explicitActivity === 'idle') {
+        return 'idle_soft';
+      }
+
+      if (containsAny(lower, [
+        'ошибка', 'error', 'rate limit', '429', 'не удалось', 'forbidden', 'таймаут', 'сбой'
+      ])) {
+        return 'error';
+      }
+
+      if (containsAny(lower, ['предупреж', 'внимание', 'осторож', 'warning'])) {
+        return 'warning';
+      }
+
+      if (messageText) {
+        return inferReplyMotionTarget(messageText, statusText);
+      }
+
+      if (containsAny(lower, ['жду', 'ожидани', 'на связи', 'готова', 'idle'])) {
+        return 'idle_soft';
+      }
+
+      return 'calm';
+    }
+
+    function applyState(state) {
+      const parsedMessage = parseAvatarDirectives(state && state.message);
+      const displayMessage = parsedMessage.text;
+      const revision = Number.isFinite(Number(state.revision)) ? Number(state.revision) : 0;
+      const updatedAt = state.updatedAt ? new Date(state.updatedAt) : null;
+      const updatedMs = updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt.getTime() : 0;
+      const isStale = updatedMs > 0 ? Date.now() - updatedMs > STALE_MS : false;
+      const online = typeof state.online === 'boolean' ? state.online : true;
+      const activity = trimText(state && state.activity, 32).toLowerCase();
+      const speaking = Boolean(state && state.speaking === true) || activity === 'speaking';
+      const busy = Boolean(state.busy) || activity === 'thinking';
+      const statusDirectiveText = parseAvatarDirectives(state && state.status).text;
+      const isNewMessage = Boolean(displayMessage && (displayMessage !== activeMessageText || revision !== lastRevision));
+      const badgeText = state.assistant || 'Нейри';
+      const statusText = !online
+        ? 'Нейри недоступна'
+        : speaking
+          ? 'Нейри отвечает'
+          : busy
+            ? 'Нейри думает'
+            : ((statusDirectiveText && statusDirectiveText !== 'Нейри ожидает синхронизации') ? statusDirectiveText : 'Нейри на связи');
+      const motionTarget = resolveStateMotionTarget(state, parsedMessage);
+      const cameOnline = online && lastOnlineState === false;
+      const statusKey = [online ? '1' : '0', busy ? '1' : '0', statusText].join('|');
+
+      badgeEl.textContent = badgeText;
+      statusEl.textContent = IS_DISPLAY_MODE ? '' : statusText;
+      statusEl.classList.toggle('stale', !online || isStale);
+      metaEl.textContent = IS_DISPLAY_MODE ? '' : (!online ? 'нет связи' : busy ? 'ответ формируется' : speaking ? 'идет ответ' : displayMessage ? 'есть новое сообщение' : 'на связи');
+      setBusyMode((busy || speaking) && online);
+
+      if (displayMessage) {
+        setMessage(displayMessage, busy ? 18000 : 14000, {
+          speak: isNewMessage && online,
+          typewriter: isNewMessage,
+          key: 'state:' + revision + ':' + displayMessage
+        });
+      } else if (externalBubbleText && !IS_DISPLAY_MODE) {
+        setMessage(externalBubbleText, 30000, {
+          speak: false,
+          typewriter: true,
+          key: externalBubbleKey || ('external:' + externalBubbleText)
+        });
+      } else if (!busy && !(IS_DISPLAY_MODE && externalBubbleText)) {
+        setMessage('');
+      }
+
+      if (!online && lastOnlineState !== false) {
+        playMotion('error', { autoReturn: true, reason: 'offline' });
+      } else if (cameOnline) {
+        playMotion('greet', { autoReturn: true, reason: 'online' });
+      } else if (online && busy && !lastBusyState) {
+        playMotion(motionTarget || 'think', { autoReturn: true, reason: 'busy start' });
+      } else if (lastRevision !== null && revision !== lastRevision) {
+        playMotion(motionTarget || (displayMessage ? 'reply' : 'calm'), { autoReturn: true, reason: 'new revision' });
+      } else if (!busy && !displayMessage && statusKey !== lastStatusKey) {
+        playMotion(motionTarget || 'calm', { autoReturn: true, reason: 'status change' });
+      }
+      lastRevision = revision;
+      lastStateAt = updatedMs;
+      lastBusyState = busy;
+      lastOnlineState = online;
+      lastStatusKey = statusKey;
+    }
+
+    function applyOfflineState() {
+      if (!lastStateAt) {
+        badgeEl.textContent = 'Нейри';
+        statusEl.textContent = IS_DISPLAY_MODE ? '' : 'Ожидание связи';
+        statusEl.classList.add('stale');
+        metaEl.textContent = IS_DISPLAY_MODE ? '' : 'нет связи';
+        setBusyMode(false);
+      }
+    }
+
+    async function refreshAvatarState() {
+      if (isRuntimeSuspended()) {
+        return;
+      }
+      if (lastExternalStateAt > 0 && Date.now() - lastExternalStateAt < POLL_MS * 4) {
+        return;
+      }
+      try {
+        const response = await fetch(`${getStateUrl()}?ts=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const state = await response.json();
+        applyState(state || {});
+      } catch (error) {
+        console.warn('Failed to refresh Neiri state', error);
+        applyOfflineState();
+      }
+    }
+
+    async function boot() {
+      try {
+        startLoadingState('Поднимаю сцену…');
+        await loadRendererConfig();
+        applyPixiCompatibilitySettings();
+        if (IS_DISPLAY_MODE) {
+          frameEl.classList.add('display-mode');
+          document.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }, true);
+          document.addEventListener('dblclick', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }, true);
+          document.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }, true);
+        }
+        await loadMotionMap();
+
+        const webglSupported = Boolean(
+          window.PIXI &&
+          PIXI.utils &&
+          typeof PIXI.utils.isWebGLSupported === 'function' &&
+          PIXI.utils.isWebGLSupported()
+        );
+
+        if (!webglSupported) {
+          showStaticPortrait('Статичный портрет');
+          return;
+        }
+
+        app = new PIXI.Application({
+          resizeTo: stage,
+          transparent: true,
+          autoDensity: true,
+          antialias: shouldUseAntialias(),
+          resolution: getRenderResolution(),
+          backgroundAlpha: 0,
+          preferWebGLVersion: 1,
+          powerPreference: 'low-power',
+        });
+        // Cap FPS to reduce CPU/GPU load — 10fps is enough for Live2D idle
+        // with hardware GPU, full 60fps during active lip-sync/motion
+        app.ticker.maxFPS = TARGET_FPS_IDLE;
+        stage.appendChild(app.view);
+        app.view.addEventListener('webglcontextlost', (event) => {
+          event.preventDefault();
+          console.warn('Live2D WebGL context lost; switching to static portrait');
+          window.setTimeout(() => showStaticPortrait('Статичный портрет'), 0);
+        }, { once: true });
+        syncRuntimeActivity({ refreshState: false, reason: 'app mounted' });
+
+        startLoadingState('Проверяю набор модели…');
+        const modelCandidates = await resolveAvailableModelCandidates();
+        if (!modelCandidates.length) {
+          showStaticPortrait('Статичный портрет');
+          return;
+        }
+        let lastModelError = null;
+        for (const candidate of modelCandidates) {
+          syncFallbackPortrait(await resolveAvailablePortraitUrl(candidate));
+          if (candidate.label !== 'primary') {
+            startLoadingState('Переключаюсь на совместимый набор…');
+          } else {
+            startLoadingState('Загружаю модель…');
+          }
+          try {
+            model = await PIXI.live2d.Live2DModel.from(candidate.modelJson);
+            break;
+          } catch (error) {
+            lastModelError = error;
+            console.warn('Failed to load Live2D model candidate', candidate.modelJson, error);
+          }
+        }
+        if (!model) {
+          throw lastModelError || new Error('Failed to load Live2D model');
+        }
+        app.stage.addChild(model);
+        ensureLipSyncTicker();
+        fitModel();
+        fallbackPortraitEl.classList.add('hidden');
+        window.requestAnimationFrame(() => window.requestAnimationFrame(markAvatarReady));
+        statusEl.textContent = IS_DISPLAY_MODE ? '' : 'На связи';
+        metaEl.textContent = IS_DISPLAY_MODE ? '' : 'на связи';
+
+        if (IS_DISPLAY_MODE && externalBubbleText) {
+          setMessage(externalBubbleText, 0, {
+            speak: true,
+            typewriter: true,
+            key: externalBubbleKey || externalBubbleText,
+            force: true,
+          });
+        }
+
+        window.addEventListener('resize', fitModel);
+
+        function beginInput(inputId, clientX, clientY) {
+          pointers.set(inputId, { x: clientX, y: clientY, startX: clientX, startY: clientY });
+          if (pointers.size === 1) {
+            dragStart = { x: clientX, y: clientY, baseX: viewState.x, baseY: viewState.y };
+          }
+          if (pointers.size === 2) {
+            pinchStartDistance = pointerDistance();
+            pinchStartScale = viewState.scale;
+            dragStart = null;
+          }
+          pushTouchDebug(`begin ${inputId} @ ${Math.round(clientX)},${Math.round(clientY)} | pointers=${pointerKeys()}`);
+        }
+
+        function moveInput(inputId, clientX, clientY) {
+          const prev = pointers.get(inputId);
+          if (!prev) {
+            pushTouchDebug(`orphan move ${inputId} ignored`);
+            return;
+          }
+          pointers.set(inputId, { x: clientX, y: clientY, startX: prev.startX, startY: prev.startY });
+          if (model && pointers.size === 1) {
+            model.focus(clientX, clientY);
+          }
+          if (pointers.size === 1 && dragStart && !IS_DISPLAY_MODE) {
+            currentViewPreset = 'custom';
+            viewState.x = dragStart.baseX + (clientX - dragStart.x);
+            viewState.y = dragStart.baseY + (clientY - dragStart.y);
+            fitModel();
+          } else if (pointers.size >= 2 && !IS_DISPLAY_MODE) {
+            const dist = pointerDistance();
+            if (pinchStartDistance > 0 && dist > 0) {
+              currentViewPreset = 'custom';
+              viewState.scale = clamp(pinchStartScale * (dist / pinchStartDistance), 0.65, 3.6);
+              fitModel();
+            }
+          }
+          pushTouchDebug(`move ${inputId} @ ${Math.round(clientX)},${Math.round(clientY)} | pointers=${pointerKeys()} scale=${viewState.scale.toFixed(2)}`);
+        }
+
+        function endInput(inputId) {
+          const pointer = pointers.get(inputId);
+          pointers.delete(inputId);
+          if (pointers.size < 2) {
+            pinchStartDistance = 0;
+          }
+          if (pointers.size === 0) {
+            dragStart = null;
+            setNeutralFocus(true);
+            window.requestAnimationFrame(() => setNeutralFocus(true));
+            if (pointer) {
+              const distance = Math.hypot(pointer.x - pointer.startX, pointer.y - pointer.startY);
+              if (distance < 12) {
+                playMotion('touch', { autoReturn: true, reason: 'tap' });
+              }
+            }
+          }
+          pushTouchDebug(`end ${inputId} | pointers=${pointerKeys()} scale=${viewState.scale.toFixed(2)}`);
+        }
+
+        stage.addEventListener('pointerdown', (event) => {
+          lastPointerInputAt = Date.now();
+          event.preventDefault();
+          event.stopPropagation();
+          pushTouchDebug(`pointerdown ${event.pointerId}/${event.pointerType || 'unknown'} primary=${event.isPrimary ? 1 : 0}`);
+          if (Array.from(pointers.keys()).some((key) => String(key).startsWith('touch-'))) {
+            resetInputs('pointer takeover');
+          }
+          try {
+            stage.setPointerCapture(event.pointerId);
+          } catch (_) {}
+          beginInput(event.pointerId, event.clientX, event.clientY);
+        });
+
+        stage.addEventListener('pointermove', (event) => {
+          lastPointerInputAt = Date.now();
+          event.preventDefault();
+          event.stopPropagation();
+          moveInput(event.pointerId, event.clientX, event.clientY);
+        });
+
+        function clearPointer(event) {
+          lastPointerInputAt = Date.now();
+          event.preventDefault();
+          event.stopPropagation();
+          pushTouchDebug(`pointerend ${event.pointerId}/${event.pointerType || 'unknown'} type=${event.type}`);
+          try {
+            if (stage.hasPointerCapture && stage.hasPointerCapture(event.pointerId)) {
+              stage.releasePointerCapture(event.pointerId);
+            }
+          } catch (_) {}
+          endInput(event.pointerId);
+        }
+
+        stage.addEventListener('pointerup', clearPointer);
+        stage.addEventListener('pointercancel', clearPointer);
+        stage.addEventListener('lostpointercapture', clearPointer);
+
+        stage.addEventListener('touchstart', (event) => {
+          if (!shouldHandleTouchFallback()) {
+            pushTouchDebug('touchstart ignored (pointer active)');
+            return;
+          }
+          lastTouchInputAt = Date.now();
+          suppressMouseUntil = Date.now() + 900;
+          event.preventDefault();
+          event.stopPropagation();
+          for (const touch of Array.from(event.changedTouches || [])) {
+            beginInput(`touch-${touch.identifier}`, touch.clientX, touch.clientY);
+          }
+        }, { passive: false });
+
+        stage.addEventListener('touchmove', (event) => {
+          if (!shouldHandleTouchFallback()) {
+            return;
+          }
+          lastTouchInputAt = Date.now();
+          suppressMouseUntil = Date.now() + 900;
+          event.preventDefault();
+          event.stopPropagation();
+          for (const touch of Array.from(event.changedTouches || [])) {
+            moveInput(`touch-${touch.identifier}`, touch.clientX, touch.clientY);
+          }
+        }, { passive: false });
+
+        function clearTouch(event) {
+          if (!shouldHandleTouchFallback()) {
+            return;
+          }
+          lastTouchInputAt = Date.now();
+          suppressMouseUntil = Date.now() + 900;
+          event.preventDefault();
+          event.stopPropagation();
+          for (const touch of Array.from(event.changedTouches || [])) {
+            endInput(`touch-${touch.identifier}`);
+          }
+        }
+
+        stage.addEventListener('touchend', clearTouch, { passive: false });
+        stage.addEventListener('touchcancel', clearTouch, { passive: false });
+
+        stage.addEventListener('mousedown', (event) => {
+          if (Date.now() < suppressMouseUntil || Date.now() - recentPrimaryInputAt() < 500) {
+            return;
+          }
+          mouseFallbackActive = true;
+          event.preventDefault();
+          event.stopPropagation();
+          beginInput('mouse', event.clientX, event.clientY);
+        });
+
+        stage.addEventListener('mousemove', (event) => {
+          if (!mouseFallbackActive || Date.now() < suppressMouseUntil || Date.now() - recentPrimaryInputAt() < 500) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          moveInput('mouse', event.clientX, event.clientY);
+        });
+
+        function clearMouse(event) {
+          if (!mouseFallbackActive || Date.now() < suppressMouseUntil || Date.now() - recentPrimaryInputAt() < 500) {
+            return;
+          }
+          mouseFallbackActive = false;
+          event.preventDefault();
+          event.stopPropagation();
+          endInput('mouse');
+        }
+
+        stage.addEventListener('mouseup', clearMouse);
+        stage.addEventListener('mouseleave', clearMouse);
+        window.addEventListener('blur', () => resetInputs('window blur'));
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+            resetInputs('document hidden');
+          }
+          syncRuntimeActivity({ refreshState: !document.hidden, reason: document.hidden ? 'document hidden' : 'document visible' });
+        });
+        if (!IS_DISPLAY_MODE) {
+          stage.addEventListener('dblclick', openNeiri);
+          badgeEl.addEventListener('click', openNeiri);
+          statusEl.addEventListener('click', openNeiri);
+          messageEl.addEventListener('click', openNeiri);
+        }
+        playMotion('greet', { autoReturn: true, reason: 'boot' });
+        startStatePolling();
+
+        window.neiriAvatar = {
+          open: openNeiri,
+          play: (target) => playMotion(target),
+          motion: (target) => playMotion(target),
+          idle: () => playMotion('idle', { autoReturn: false }),
+          greet: () => playMotion('greet'),
+          think: () => playMotion('think'),
+          reply: () => playMotion('reply'),
+          calm: () => playMotion('calm'),
+          shy: () => playMotion('shy'),
+          cute: () => playMotion('cute'),
+          surprise: () => playMotion('surprise'),
+          error: () => playMotion('error'),
+          touch: () => playMotion('touch'),
+          refresh: () => refreshAvatarState(),
+          setMessage: (text) => setMessage(text),
+          speak: (text, ttlMs = 12000) => setMessage(text, ttlMs, { speak: true }),
+          stopLipSync: () => stopLipSync({ decay: true }),
+          setMouth: (open, form = 0) => setLipSyncValue(open, form),
+          zoom: (scale) => { viewState.scale = clamp(Number(scale) || 1, 0.65, 3.6); fitModel(); },
+          pan: (x, y) => { viewState.x = Number(x) || 0; viewState.y = Number(y) || 0; fitModel(); },
+          preset: (name) => applyViewPreset(name),
+          resetView: () => resetView(),
+          focus: (x, y) => { if (model) model.focus(Number(x) || 0, Number(y) || 0); },
+          neutralFocus: (immediate = false) => setNeutralFocus(immediate),
+          displayOn: () => {
+            displaySleepPaused = false;
+            syncRuntimeActivity({ refreshState: true, reason: 'api display on' });
+          },
+          displayOff: () => {
+            displaySleepPaused = true;
+            syncRuntimeActivity({ refreshState: false, reason: 'api display off' });
+          },
+          current: () => ({ index: currentMotionIndex, motion: getMotionDef(currentMotionIndex), preset: currentViewPreset, view: { ...viewState } }),
+          listMotions: () => motionMap,
+          __debugModel: () => model,
+          __debugCoreModel: () => getCoreModel(),
+        };
+      } catch (error) {
+        console.error(error);
+        showStaticPortrait('Статичный портрет');
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
